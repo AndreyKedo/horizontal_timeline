@@ -1,0 +1,22 @@
+name: timeline_widget
+description: 'Draws a 24-hour time scale with 15-minute increments, allowing you to select a time range.'
+version: 1.0.0
+homepage:
+
+
+topics:
+  - widget
+  - timeline
+
+environment:
+  sdk: ^3.4.0
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
