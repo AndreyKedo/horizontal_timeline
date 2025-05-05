@@ -1,5 +1,7 @@
 Timeline widget.
-Draws a 24-hour time scale with 15-minute increments, allowing you to select a time range.
+Draws a 24-hour scrollable time scale with 15-minute increments, allowing you to select a time range.
+
+![preview](./doc/preview.png)
 
 ## Features
 
