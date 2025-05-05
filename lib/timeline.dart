@@ -247,6 +247,7 @@ class Timeline extends LeafRenderObjectWidget {
       ),
       color: Color.fromARGB(100, 178, 208, 255),
       borderRadius: BorderRadius.all(Radius.circular(2)),
+      dragHandleColor: Colors.white,
     ),
     this.minSelectorRange = const TimeOfDay(hour: 0, minute: 30),
     this.scrollAnimationStyle,
@@ -973,7 +974,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       } else if ((viewportRect.right - newRect.right) < kAxisScrollThreshold && newRect.width == minSelectorWidth) {
         parent?.showOnScreen(
           descendant: this,
-          rect: Rect.fromLTWH(rightExtent + kDragArea, .0, kDragArea, newRect.height),
+          rect: Rect.fromLTWH(rightExtent + kDragArea, .0, 1, newRect.height),
           curve: scrollAnimationStyle.curve ?? Curves.ease,
           duration: scrollAnimationStyle.duration ?? Durations.short2,
         );
@@ -1008,7 +1009,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
           newRect.width == minSelectorWidth) {
         parent?.showOnScreen(
           descendant: this,
-          rect: Rect.fromLTWH(leftExtent - kDragArea, .0, kDragArea, newRect.height),
+          rect: Rect.fromLTWH(leftExtent - kDragArea, .0, 1, newRect.height),
           duration: scrollAnimationStyle.duration ?? Durations.short2,
         );
       }
@@ -1027,28 +1028,6 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       _selectorRect,
       selectorBorder,
       textDirection,
-    );
-
-    final linePaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.fill;
-
-    final shift = Offset(3, 0);
-
-    final verticalSpace = _selectorRect.height * .21;
-
-    canvas.drawLine(
-      (_selectorRect.topLeft + shift) + Offset(0, verticalSpace),
-      (_selectorRect.bottomLeft + shift) - Offset(0, verticalSpace),
-      linePaint,
-    );
-
-    canvas.drawLine(
-      (_selectorRect.topRight - shift) + Offset(0, verticalSpace),
-      (_selectorRect.bottomRight - shift) - Offset(0, verticalSpace),
-      linePaint,
     );
   }
 

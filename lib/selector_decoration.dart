@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
+/// Объявляет стиль отображения элемента выбора диапазона.
 class SelectorDecoration with Diagnosticable {
   const SelectorDecoration({
     this.color,
@@ -12,6 +13,7 @@ class SelectorDecoration with Diagnosticable {
     this.boxShadow,
     this.gradient,
     this.backgroundBlendMode,
+    this.dragHandleColor,
     this.shape = BoxShape.rectangle,
   }) : assert(
           backgroundBlendMode == null || color != null || gradient != null,
@@ -21,6 +23,7 @@ class SelectorDecoration with Diagnosticable {
 
   SelectorDecoration copyWith({
     Color? color,
+    Color? dragHandleColor,
     BoxBorder? border,
     BoxBorder? errorBorder,
     BorderRadiusGeometry? borderRadius,
@@ -31,6 +34,7 @@ class SelectorDecoration with Diagnosticable {
   }) {
     return SelectorDecoration(
       color: color ?? this.color,
+      dragHandleColor: dragHandleColor ?? this.dragHandleColor,
       border: border ?? this.border,
       errorBorder: errorBorder ?? this.errorBorder,
       borderRadius: borderRadius ?? this.borderRadius,
@@ -43,6 +47,7 @@ class SelectorDecoration with Diagnosticable {
 
   SelectorDecoration merge(SelectorDecoration other) => copyWith(
         color: other.color,
+        dragHandleColor: other.dragHandleColor,
         border: other.border,
         errorBorder: other.errorBorder,
         borderRadius: other.borderRadius,
@@ -66,22 +71,9 @@ class SelectorDecoration with Diagnosticable {
 
   final BlendMode? backgroundBlendMode;
 
-  final BoxShape shape;
+  final Color? dragHandleColor;
 
-  Path getClipPath(Rect rect, TextDirection textDirection) {
-    switch (shape) {
-      case BoxShape.circle:
-        final Offset center = rect.center;
-        final double radius = rect.shortestSide / 2.0;
-        final Rect square = Rect.fromCircle(center: center, radius: radius);
-        return Path()..addOval(square);
-      case BoxShape.rectangle:
-        if (borderRadius != null) {
-          return Path()..addRRect(borderRadius!.resolve(textDirection).toRRect(rect));
-        }
-        return Path()..addRect(rect);
-    }
-  }
+  final BoxShape shape;
 
   /// Returns a new box decoration that is scaled by the given factor.
   SelectorDecoration scale(double factor) {
@@ -133,6 +125,7 @@ class SelectorDecoration with Diagnosticable {
     }
     return other is SelectorDecoration &&
         other.color == color &&
+        other.dragHandleColor == dragHandleColor &&
         other.border == border &&
         other.errorBorder == errorBorder &&
         other.borderRadius == borderRadius &&
@@ -145,6 +138,7 @@ class SelectorDecoration with Diagnosticable {
   @override
   int get hashCode => Object.hash(
         color,
+        dragHandleColor,
         border,
         errorBorder,
         borderRadius,
@@ -335,6 +329,31 @@ class _SelectorDecorationPainter {
       shape: decoration.shape,
       borderRadius: decoration.borderRadius?.resolve(textDirection),
       textDirection: textDirection,
+    );
+
+    final dragHandleColor = decoration.dragHandleColor;
+    if (dragHandleColor == null) return;
+
+    final linePaint = Paint()
+      ..color = dragHandleColor
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.fill;
+
+    final shift = border != null ? Offset(border.dimensions.horizontal / 4, 0) : Offset.zero;
+
+    final verticalSpace = rect.height * .21;
+
+    canvas.drawLine(
+      (rect.topLeft + shift) + Offset(0, verticalSpace),
+      (rect.bottomLeft + shift) - Offset(0, verticalSpace),
+      linePaint,
+    );
+
+    canvas.drawLine(
+      (rect.topRight - shift) + Offset(0, verticalSpace),
+      (rect.bottomRight - shift) - Offset(0, verticalSpace),
+      linePaint,
     );
   }
 }

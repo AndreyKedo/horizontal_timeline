@@ -61,6 +61,7 @@ class _TimelineScrollState extends State<TimelineScroll> {
   Widget build(BuildContext context) {
     final defaultConfiguration = ScrollConfiguration.of(context);
     final materialLocalization = MaterialLocalizations.of(context);
+
     return ScrollConfiguration(
       behavior: defaultConfiguration.copyWith(dragDevices: {PointerDeviceKind.mouse, PointerDeviceKind.touch}),
       child: Scaffold(
