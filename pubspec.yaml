@@ -3,13 +3,12 @@ description: 'Draws a 24-hour time scale with 15-minute increments, allowing you
 version: 1.0.0
 homepage:
 
-
 topics:
   - widget
   - timeline
 
 environment:
-  sdk: ^3.4.0
+  sdk: ^3.7.2
   flutter: ">=3.22.0"
 
 dependencies:

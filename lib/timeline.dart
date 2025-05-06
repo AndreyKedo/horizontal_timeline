@@ -161,6 +161,7 @@ class HatchStyle {
           space == other.space;
 }
 
+/// {@template timeline}
 /// Виджет, который отображает временную шкалу длиной 24 часа с возможностью выбирать определённый временной диапазон.
 /// При изменении выбранного диапазона автоматически вызывается обратный вызов [onChange], принимающий аргумент типа [TimeRange].
 ///
@@ -225,7 +226,9 @@ class HatchStyle {
 ///   }
 /// }
 /// ```
+/// {@endtemplate}
 class Timeline extends LeafRenderObjectWidget {
+  /// {@macro timeline}
   const Timeline({
     super.key,
     this.initialSelectorRange,
