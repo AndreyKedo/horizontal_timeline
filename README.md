@@ -52,8 +52,8 @@ class MainApp extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 hitTestBehavior: HitTestBehavior.deferToChild,
                 child: Timeline(
-                  initialSelectorRange: TimeWindow(begin: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 10, minute: 0)),
-                  availableWindow: TimeWindow(begin: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 18, minute: 0)),
+                  initialSelectorRange: TimeRange(begin: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 10, minute: 0)),
+                  availableWindow: TimeRange(begin: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 18, minute: 0)),
                 ),
             ),
         ),
