@@ -190,7 +190,7 @@ class HatchStyle {
 /// родительского контейнера. Необходимо внимательно следить за заданием максимальной высоты виджета,
 /// используя такие виджеты, как [ConstrainedBox], перед добавлением внутрь [SingleChildScrollView].
 ///
-/// Пример использования виджета
+/// Пример использования
 ///
 /// ```dart
 /// import 'package:flutter/gestures.dart';
@@ -515,6 +515,12 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     if (value == _animationStyle) return;
 
     _animationStyle = value;
+
+    _animationController.dispose();
+    _parentAnimation.dispose();
+
+    _animationController = AnimationController(vsync: this, duration: animationStyle.duration);
+    _parentAnimation = CurvedAnimation(parent: _animationController, curve: animationStyle.curve ?? Curves.easeInOut);
   }
 
   //----------Selector properties------------
@@ -893,6 +899,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     markNeedsPaint();
   }
 
+  // Анимированно изменяет прямоугольник. Обратный вызов [onComplete] может быть использован
+  // для действия после анимации.
   void _animatedUpdateSelectorRect(Rect value, [VoidCallback? onComplete]) {
     if (value == _selectorRect && _animation?.isAnimating == true) return;
 
@@ -909,7 +917,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     });
   }
 
-  // Анимированно привязывает позицию прямоугольника к делениям на шкале
+  // Анимированно привязывает позицию прямоугольника к делениям на шкале. Обратный вызов [onComplete]
+  // может быть использован для действия после анимации.
   void _animatedSnapToSegment(VoidCallback onCompleted) {
     _animation?.removeListener(_changeSelector);
     _animation = null;
@@ -1092,11 +1101,13 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       path.lineTo(dx, dy);
     }
 
-    canvas.save();
-    canvas.clipRect(rect, clipOp: ClipOp.difference);
-    canvas.clipRect(Offset.zero & timeScaleSize);
-    canvas.drawRect(Offset.zero & timeScaleSize, backgroundPaint);
-    canvas.drawPath(path, hatchPaint);
+    canvas
+      ..save()
+      ..clipRect(rect, clipOp: ClipOp.difference)
+      ..clipRect(Offset.zero & timeScaleSize);
+    canvas
+      ..drawRect(Offset.zero & timeScaleSize, backgroundPaint)
+      ..drawPath(path, hatchPaint);
     canvas.restore();
   }
 
