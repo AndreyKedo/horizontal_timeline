@@ -53,7 +53,7 @@ class MainApp extends StatelessWidget {
                 hitTestBehavior: HitTestBehavior.deferToChild,
                 child: Timeline(
                   initialSelectorRange: TimeRange(begin: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 10, minute: 0)),
-                  availableWindow: TimeRange(begin: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 18, minute: 0)),
+                  availableRanges: {TimeRange(begin: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 18, minute: 0))},
                 ),
             ),
         ),
