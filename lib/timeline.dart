@@ -33,7 +33,7 @@ const kDragArea = 48.0;
 const kMinGap = 24.0;
 
 /// Горизонтальный отступ при фокусировки на доступной области.
-const kHorizontalFocusPadding = 16.0;
+const kHorizontalFocusPadding = 32.0;
 
 /// Коэффициент чувствительности при которой будет обнаружен жест прокрутки.
 const kScrollThreshold = 5.0;
