@@ -201,8 +201,6 @@ class HatchStyle {
 /// Настройка шага временной шкалы осуществляется с использованием параметра [gap] — его значение не
 /// должно быть ниже значения [kMinGap].
 /// Интервалы доступных временных промежутков указываются в свойстве [availableRanges].
-/// Пустое значение коллекции трактуется как отсутствие ограничений — вся временная шкала открыта для выбора, или вы
-/// можете использовать [TimeRange.day].
 ///
 /// Дополнительная настройка визуализации производится посредством следующих свойств:
 /// * [timeScaleColor]: Цвет контура шкалы.
@@ -494,9 +492,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       return _selectorRect.right <= rect.right && _selectorRect.left >= rect.left;
     }
 
-    if (!_availableZones.any(collisionDetectorPredicate) &&
-        selectorDecoration.errorBorder != null &&
-        _availableZones.isNotEmpty) {
+    if (!_availableZones.any(collisionDetectorPredicate) && selectorDecoration.errorBorder != null) {
       borderPainter = selectorDecoration.errorBorder!;
     }
     return borderPainter;
@@ -1104,8 +1100,6 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       }
     }
 
-    if (availableRanges.isEmpty) return;
-
     _drawHatch(canvas);
   }
 
@@ -1170,7 +1164,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
     final time = TimeOfDay(hour: hours, minute: minutes);
 
-    if (!availableRanges.any((range) => range.overlaps(time)) && availableRanges.isNotEmpty) {
+    if (!availableRanges.any((range) => range.overlaps(time))) {
       style = disabledLabelStyle;
     }
 
