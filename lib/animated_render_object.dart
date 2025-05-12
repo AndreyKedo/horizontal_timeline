@@ -26,7 +26,6 @@ mixin SingleTickerProviderRenderObject on RenderObject implements TickerProvider
   void dispose() {
     _tickerModeNotifier?.removeListener(_updateTicker);
     _tickerModeNotifier = null;
-    _ticker?.dispose();
     super.dispose();
   }
 

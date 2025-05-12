@@ -11,4 +11,3 @@
 # 1.2.0
 
 * if the collection of `availableRanges` is empty the timeline is completely filled
-* Fix memory leak
