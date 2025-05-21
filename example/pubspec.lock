@@ -75,9 +75,10 @@ packages:
   horizontal_timeline:
     dependency: "direct main"
     description:
-      path: ".."
-      relative: true
-    source: path
+      name: horizontal_timeline
+      sha256: efb67130a9c6eb6818644837fd33727a1f1aa6844d3041346e8577f7ca2af49a
+      url: "https://pub.dev"
+    source: hosted
     version: "1.2.0"
   intl:
     dependency: "direct main"
