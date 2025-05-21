@@ -72,6 +72,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  horizontal_timeline:
+    dependency: "direct main"
+    description:
+      path: ".."
+      relative: true
+    source: path
+    version: "1.2.0"
   intl:
     dependency: "direct main"
     description:
@@ -197,13 +204,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.4"
-  timeline_widget:
-    dependency: "direct main"
-    description:
-      path: ".."
-      relative: true
-    source: path
-    version: "1.0.0"
   vector_math:
     dependency: transitive
     description:

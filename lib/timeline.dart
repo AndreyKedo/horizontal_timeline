@@ -2,14 +2,14 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show ValueListenable, setEquals;
 import 'package:flutter/material.dart';
-import 'package:timeline_widget/animated_render_object.dart';
+import 'package:horizontal_timeline/animated_render_object.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:timeline_widget/selector_decoration.dart';
+import 'package:horizontal_timeline/selector_decoration.dart';
 
-export 'package:timeline_widget/selector_decoration.dart';
+export 'package:horizontal_timeline/selector_decoration.dart';
 
 /// Количество минут в сутках.
 const kMinutesPerDay = TimeOfDay.hoursPerDay * TimeOfDay.minutesPerHour;

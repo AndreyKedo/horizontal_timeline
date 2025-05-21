@@ -1,6 +1,5 @@
 name: timeline_widget_example
 description: "The example of usage a timeline_widget"
-publish_to: 'none'
 version: 0.1.0
 
 environment:
@@ -12,7 +11,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
-  timeline_widget:
+  horizontal_timeline:
     path: ../
 
 dev_dependencies:

@@ -1,7 +1,7 @@
-name: timeline_widget
+name: horizontal_timeline
 description: 'Draws a 24-hour time scale with 15-minute increments, allowing you to select a time range.'
 version: 1.2.0
-homepage:
+repository: https://github.com/AndreyKedo/timeline_widget
 
 topics:
   - widget

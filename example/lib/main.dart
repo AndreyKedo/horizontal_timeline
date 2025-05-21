@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:timeline_widget/timeline.dart';
+import 'package:horizontal_timeline/timeline.dart';
 
 void main() {
   runApp(const MainApp());
