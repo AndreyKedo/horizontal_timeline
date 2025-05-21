@@ -11,7 +11,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
-  horizontal_timeline: ^1.2.0
+  horizontal_timeline: ^1.2.1
 
 dev_dependencies:
   flutter_test:
