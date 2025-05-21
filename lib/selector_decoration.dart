@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
@@ -14,7 +12,6 @@ class SelectorDecoration with Diagnosticable {
     this.gradient,
     this.backgroundBlendMode,
     this.dragHandleColor,
-    this.shape = BoxShape.rectangle,
   }) : assert(
          backgroundBlendMode == null || color != null || gradient != null,
          "backgroundBlendMode applies to SelectorDecoration's background color or "
@@ -30,7 +27,6 @@ class SelectorDecoration with Diagnosticable {
     List<BoxShadow>? boxShadow,
     Gradient? gradient,
     BlendMode? backgroundBlendMode,
-    BoxShape? shape,
   }) {
     return SelectorDecoration(
       color: color ?? this.color,
@@ -41,7 +37,6 @@ class SelectorDecoration with Diagnosticable {
       boxShadow: boxShadow ?? this.boxShadow,
       gradient: gradient ?? this.gradient,
       backgroundBlendMode: backgroundBlendMode ?? this.backgroundBlendMode,
-      shape: shape ?? this.shape,
     );
   }
 
@@ -54,28 +49,52 @@ class SelectorDecoration with Diagnosticable {
     boxShadow: other.boxShadow,
     gradient: other.gradient,
     backgroundBlendMode: other.backgroundBlendMode,
-    shape: other.shape,
   );
 
+  /// Цвет для заливки фона прямоугольника.
+  ///
+  /// Игнорируется, если [gradient] не равен null.
   final Color? color;
 
+  /// Граница, которая рисуется над фоном [color], [gradient].
+  ///
+  /// Используйте объекты [Border] для описания границ, которые не зависят от направления чтения.
+  ///
+  /// Используйте объекты [BoxBorder] для описания границ, которые должны переворачивать свои левые
+  /// и правые края в зависимости от того, читается ли текст слева направо или
+  /// справа налево.
   final BoxBorder border;
 
   final BoxBorder? errorBorder;
 
+  /// Если значение не равно нулю, углы скругляются на значение [BorderRadius].
   final BorderRadiusGeometry? borderRadius;
 
+  /// Список теней, отбрасываемых прямоугольником позади себя.
+  ///
+  /// Смотрите также:
+  ///
+  ///  * [kElevationToShadow], предопределенные тени, используемые в Material Design.
+  ///  * [PhysicalModel], виджет который рисует тени.
   final List<BoxShadow>? boxShadow;
 
+  /// Градиент, используемый при заполнении поля.
+  ///
+  /// Полностью заполняет прямоугольник передаваемым [Gradient] и игнорирует параметр [color].
   final Gradient? gradient;
 
+  /// Режим смешивания, применяемый к фону [color] или [gradient].
+  ///
+  /// Если [backgroundBlendMode] не указан, то используется режим смешивания по умолчанию.
+  ///
+  /// Если [color] или [gradient] не указан, то режим смешивания не оказывает никакого влияния.
   final BlendMode? backgroundBlendMode;
 
+  /// Цвет якорей.
+  ///
+  /// Если цвет не указан, якоря не рисуются.
   final Color? dragHandleColor;
 
-  final BoxShape shape;
-
-  /// Returns a new box decoration that is scaled by the given factor.
   SelectorDecoration scale(double factor) {
     return SelectorDecoration(
       color: Color.lerp(null, color, factor),
@@ -84,7 +103,6 @@ class SelectorDecoration with Diagnosticable {
       borderRadius: BorderRadiusGeometry.lerp(null, borderRadius, factor),
       boxShadow: BoxShadow.lerpList(null, boxShadow, factor),
       gradient: gradient?.scale(factor),
-      shape: shape,
     );
   }
 
@@ -111,7 +129,6 @@ class SelectorDecoration with Diagnosticable {
       borderRadius: BorderRadiusGeometry.lerp(a.borderRadius, b.borderRadius, t),
       boxShadow: BoxShadow.lerpList(a.boxShadow, b.boxShadow, t),
       gradient: Gradient.lerp(a.gradient, b.gradient, t),
-      shape: t < 0.5 ? a.shape : b.shape,
     );
   }
 
@@ -131,8 +148,7 @@ class SelectorDecoration with Diagnosticable {
         other.borderRadius == borderRadius &&
         listEquals<BoxShadow>(other.boxShadow, boxShadow) &&
         other.gradient == gradient &&
-        other.backgroundBlendMode == backgroundBlendMode &&
-        other.shape == shape;
+        other.backgroundBlendMode == backgroundBlendMode;
   }
 
   @override
@@ -145,7 +161,6 @@ class SelectorDecoration with Diagnosticable {
     boxShadow == null ? null : Object.hashAll(boxShadow!),
     gradient,
     backgroundBlendMode,
-    shape,
   );
 
   @override
@@ -162,26 +177,22 @@ class SelectorDecoration with Diagnosticable {
       IterableProperty<BoxShadow>('boxShadow', boxShadow, defaultValue: null, style: DiagnosticsTreeStyle.whitespace),
     );
     properties.add(DiagnosticsProperty<Gradient>('gradient', gradient, defaultValue: null));
-    properties.add(EnumProperty<BoxShape>('shape', shape, defaultValue: BoxShape.rectangle));
   }
 
+  /// Проверка попадания.
   bool hitTest(Size size, Offset position, {TextDirection? textDirection}) {
     assert((Offset.zero & size).contains(position));
-    switch (shape) {
-      case BoxShape.rectangle:
-        if (borderRadius != null) {
-          final RRect bounds = borderRadius!.resolve(textDirection).toRRect(Offset.zero & size);
-          return bounds.contains(position);
-        }
-        return true;
-      case BoxShape.circle:
-        // Circles are inscribed into our smallest dimension.
-        final Offset center = size.center(Offset.zero);
-        final double distance = (position - center).distance;
-        return distance <= math.min(size.width, size.height) / 2.0;
+    if (borderRadius != null) {
+      final RRect bounds = borderRadius!.resolve(textDirection).toRRect(Offset.zero & size);
+      return bounds.contains(position);
     }
+    return true;
   }
 
+  /// Рисует прямоугольник в заданных [rect] ограничениях.
+  ///
+  /// Обратите внимание, если вы указали [border] или [errorBorder], то вам надо явно передать именованный
+  /// параметр [border] в метод.
   void paint(Canvas canvas, Rect rect, [BoxBorder? border, TextDirection? textDirection]) =>
       _SelectorDecorationPainter(this).paint(canvas, rect, border, textDirection);
 }
@@ -216,18 +227,10 @@ class _SelectorDecorationPainter {
   }
 
   void _paintBox(Canvas canvas, Rect rect, Paint paint, TextDirection? textDirection) {
-    switch (decoration.shape) {
-      case BoxShape.circle:
-        assert(decoration.borderRadius == null);
-        final Offset center = rect.center;
-        final double radius = rect.shortestSide / 2.0;
-        canvas.drawCircle(center, radius, paint);
-      case BoxShape.rectangle:
-        if (decoration.borderRadius == null || decoration.borderRadius == BorderRadius.zero) {
-          canvas.drawRect(rect, paint);
-        } else {
-          canvas.drawRRect(decoration.borderRadius!.resolve(textDirection).toRRect(rect), paint);
-        }
+    if (decoration.borderRadius == null || decoration.borderRadius == BorderRadius.zero) {
+      canvas.drawRect(rect, paint);
+    } else {
+      canvas.drawRRect(decoration.borderRadius!.resolve(textDirection).toRRect(rect), paint);
     }
   }
 
@@ -321,7 +324,6 @@ class _SelectorDecorationPainter {
     border?.paint(
       canvas,
       rect,
-      shape: decoration.shape,
       borderRadius: decoration.borderRadius?.resolve(textDirection),
       textDirection: textDirection,
     );
