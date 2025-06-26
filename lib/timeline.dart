@@ -888,11 +888,14 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
   TimeOfDay _dxToTime(double dx) {
     final shift = dx / gap;
-    final totalMinutes = (shift * kMinutesShift).remainder(kMinutesPerDay);
-
-    final hours = (totalMinutes ~/ TimeOfDay.minutesPerHour).remainder(TimeOfDay.hoursPerDay);
+    final totalMinutes = shift * kMinutesShift;
+    final hours = switch (totalMinutes) {
+      < TimeOfDay.minutesPerHour * TimeOfDay.hoursPerDay => (totalMinutes ~/ TimeOfDay.minutesPerHour).remainder(
+        TimeOfDay.hoursPerDay,
+      ),
+      _ => 24,
+    };
     final minutes = totalMinutes.remainder(TimeOfDay.minutesPerHour).round();
-
     return TimeOfDay(hour: hours, minute: minutes);
   }
 

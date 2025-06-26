@@ -15,3 +15,7 @@
 ## 1.2.1
 
 * Update documentation.
+
+## 1.2.2
+
+* Fixed incorrect calculation of time range
