@@ -7,12 +7,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:horizontal_timeline/selector_decoration.dart';
+import 'package:horizontal_timeline/styles/hatch_style.dart';
+import 'package:horizontal_timeline/styles/selector_decoration.dart';
+import 'package:horizontal_timeline/time_extension.dart';
+import 'package:horizontal_timeline/time_range.dart';
 
-export 'package:horizontal_timeline/selector_decoration.dart';
-
-/// Количество минут в сутках.
-const kMinutesPerDay = TimeOfDay.hoursPerDay * TimeOfDay.minutesPerHour;
+export 'package:horizontal_timeline/styles/selector_decoration.dart';
+export 'package:horizontal_timeline/styles/hatch_style.dart';
+export 'package:horizontal_timeline/time_extension.dart';
+export 'package:horizontal_timeline/time_range.dart';
 
 /// Постоянное смещение в минутах.
 const kMinutesShift = 15;
@@ -63,131 +66,6 @@ final kDefaultScrollAnimationStyle = AnimationStyle(curve: Curves.linear, durati
 
 /// Тип унарного обратного вызова, который принимает аргумент типа [TimeRange].
 typedef OnChangeSelectorRange = void Function(TimeRange value);
-
-/// Проверка [TimeOfDay] в debug.
-bool debugTimeOfDayCheck(TimeOfDay value) {
-  assert(() {
-    if (value.hour > TimeOfDay.hoursPerDay || value.hour < 0) {
-      throw FlutterError(
-        'Некорректное значение времени. Время должно быть 0 >= TimeOfDay.hour <= TimeOfDay.hoursPerDay',
-      );
-    }
-
-    if (value.minute > TimeOfDay.minutesPerHour || value.minute < 0) {
-      throw FlutterError(
-        'Некорректное значение времени. Время должно быть 0 >= TimeOfDay.minute <= TimeOfDay.minutesPerHour',
-      );
-    }
-    return true;
-  }());
-  return true;
-}
-
-/// Проверка [TimeRange] в debug.
-bool debugTimeWindow(TimeRange value) {
-  assert(value.begin.isBefore(value.end), 'Нижняя граница времени должна быть меньше верхней.');
-  debugTimeOfDayCheck(value.begin);
-  debugTimeOfDayCheck(value.end);
-  return true;
-}
-
-bool debugAvailableRanges(Iterable<TimeRange> values) {
-  assert(() {
-    for (var value in values) {
-      debugTimeWindow(value);
-    }
-    return true;
-  }());
-  return true;
-}
-
-/// Диапазон времени.
-@immutable
-class TimeRange {
-  const TimeRange({
-    this.begin = const TimeOfDay(hour: 0, minute: 0),
-    this.end = const TimeOfDay(hour: TimeOfDay.hoursPerDay, minute: 0),
-  });
-
-  /// Начало диапазона.
-  final TimeOfDay begin;
-
-  /// Конец диапазона.
-  final TimeOfDay end;
-
-  /// Константное значение равное суткам.
-  static const day = TimeRange();
-
-  /// Константное значение выражающие пустой диапазон.
-  static const empty = TimeRange(begin: TimeOfDay(hour: 0, minute: 0), end: TimeOfDay(hour: 0, minute: 0));
-
-  /// Начало диапазона в минутах.
-  int get beginMinute => begin.totalMinutes;
-
-  /// Конец диапазона в минутах.
-  int get endMinute => end.totalMinutes;
-
-  /// Значение диапазона времени в минутах.
-  int get minutes => endMinute - beginMinute;
-
-  /// Значение диапазона времени в [TimeOfDay].
-  TimeOfDay get time {
-    int hours = (this.minutes ~/ TimeOfDay.minutesPerHour).remainder(TimeOfDay.hoursPerDay);
-    int minutes = this.minutes.remainder(TimeOfDay.minutesPerHour);
-
-    return TimeOfDay(hour: hours, minute: minutes);
-  }
-
-  bool overlaps(TimeOfDay value) {
-    return value >= begin && value <= end;
-  }
-
-  TimeRange copyWith({TimeOfDay? begin, TimeOfDay? end}) => TimeRange(begin: begin ?? this.begin, end: end ?? this.end);
-
-  @override
-  int get hashCode => Object.hash(runtimeType, begin, end);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TimeRange && runtimeType == other.runtimeType && begin == other.begin && end == other.end;
-}
-
-/// Стиль штриховки для отображения неактивно области.
-@immutable
-class HatchStyle {
-  const HatchStyle({
-    this.backgroundColor = const Color.fromARGB(95, 230, 235, 243),
-    this.space = 8.0,
-    this.strokeColor = const Color.fromARGB(80, 194, 197, 204),
-    this.strokeWidth = 1,
-  });
-
-  final Color backgroundColor;
-  final Color strokeColor;
-  final double strokeWidth;
-  final double space;
-
-  HatchStyle copyWith({Color? backgroundColor, Color? strokeColor, double? strokeWidth, double? space}) => HatchStyle(
-    backgroundColor: backgroundColor ?? this.backgroundColor,
-    space: space ?? this.space,
-    strokeColor: strokeColor ?? this.strokeColor,
-    strokeWidth: strokeWidth ?? this.strokeWidth,
-  );
-
-  @override
-  int get hashCode => Object.hash(runtimeType, backgroundColor, strokeColor, strokeWidth, space);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is HatchStyle &&
-          runtimeType == other.runtimeType &&
-          backgroundColor == other.backgroundColor &&
-          strokeColor == other.strokeColor &&
-          strokeWidth == other.strokeWidth &&
-          space == other.space;
-}
 
 /// {@template timeline}
 /// Виджет, который отображает временную шкалу длиной 24 часа с возможностью выбирать определённый временной диапазон.
@@ -320,12 +198,9 @@ class Timeline extends LeafRenderObjectWidget {
   final AnimationStyle? animationStyle;
 
   void _debug() {
-    assert(debugAvailableRanges(availableRanges));
-
     assert(debugTimeOfDayCheck(minSelectorRange));
 
     if (initialSelectorRange != null) {
-      assert(debugTimeWindow(initialSelectorRange!));
       assert(initialSelectorRange!.minutes >= minSelectorRange.totalMinutes);
     }
 
@@ -434,13 +309,15 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
        _onChangeSelectorRange = onChangeSelectorRange {
     tickerModeNotifier = tickerNotifier;
 
-    _animationController = AnimationController(vsync: this, duration: animationStyle.duration);
-    _parentAnimation = CurvedAnimation(parent: _animationController, curve: animationStyle.curve ?? Curves.easeInOut);
+    _initializeAnimation(animationStyle);
   }
 
   // Paint optimization
   final _textPainterCache = <int, TextPainter>{};
+
   final _timelineLayerHandler = LayerHandle<PictureLayer>();
+
+  final _hatchLayerHandler = LayerHandle<PictureLayer>();
 
   /// Animation
   late AnimationController _animationController;
@@ -485,24 +362,20 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   /// Включен/Выключен выделитель времени
   bool get isEnabledSelector => initialSelectorRange != null && _selectorRect.width != 0;
 
-  BoxBorder get selectorBorder {
+  BoxBorder get effectiveSelectorBorder {
     var borderPainter = selectorDecoration.border;
 
-    bool collisionDetectorPredicate(Rect rect) {
-      return _selectorRect.right <= rect.right && _selectorRect.left >= rect.left;
-    }
-
-    if (!_availableZones.any(collisionDetectorPredicate) && selectorDecoration.errorBorder != null) {
+    if (!_availableZones.any(_collisionDetectorPredicate) && selectorDecoration.errorBorder != null) {
       borderPainter = selectorDecoration.errorBorder!;
     }
     return borderPainter;
   }
 
   Offset get _leftEdgeCenter =>
-      _selectorRect.centerLeft - Offset((kDragArea / 2) - selectorBorder.dimensions.horizontal / 2, .0);
+      _selectorRect.centerLeft - Offset((kDragArea / 2) - effectiveSelectorBorder.dimensions.horizontal / 2, .0);
 
   Offset get _rightEdgeCenter =>
-      _selectorRect.centerRight + Offset((kDragArea / 2) - selectorBorder.dimensions.horizontal / 2, .0);
+      _selectorRect.centerRight + Offset((kDragArea / 2) - effectiveSelectorBorder.dimensions.horizontal / 2, .0);
 
   OnChangeSelectorRange? _onChangeSelectorRange;
   OnChangeSelectorRange? get onChangeSelectorRange => _onChangeSelectorRange;
@@ -520,6 +393,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     _availableRanges = value;
     _textPainterCache.clear();
     _availableZones = _rangesToGeometry(value, timeScaleSize);
+    _redrawHatch();
     _redrawTimeScale();
     markNeedsPaint();
   }
@@ -539,11 +413,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
     _animationStyle = value;
 
-    _animationController.dispose();
-    _parentAnimation.dispose();
-
-    _animationController = AnimationController(vsync: this, duration: animationStyle.duration);
-    _parentAnimation = CurvedAnimation(parent: _animationController, curve: animationStyle.curve ?? Curves.easeInOut);
+    _disposeAnimations();
+    _initializeAnimation(value);
   }
 
   //----------Selector properties------------
@@ -605,7 +476,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     if (value == _hatchStyle) return;
 
     _hatchStyle = value;
-    _redrawTimeScale();
+    _redrawHatch();
     markNeedsPaint();
   }
 
@@ -823,27 +694,23 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   @override
   void paint(PaintingContext context, Offset offset) {
     // кэшируем слой шкалы для дальнейшего переиспользовать
-    if (_timelineLayerHandler.layer == null) {
-      final pictureRecorder = PictureRecorder();
-      final canvas = Canvas(pictureRecorder);
+    drawOnPictureLayer(context: context, layer: _timelineLayerHandler, size: size, draw: _drawTimescale);
 
-      _drawTimescale(canvas);
+    // кэшируем слой заштриховки
+    drawOnPictureLayer(context: context, layer: _hatchLayerHandler, size: size, draw: _drawHatch);
 
-      final picture = pictureRecorder.endRecording();
-
-      _timelineLayerHandler.layer = PictureLayer(Rect.fromLTWH(0, 0, size.width, size.height))..picture = picture;
-    }
-
-    if (_timelineLayerHandler.layer != null) {
-      context.addLayer(_timelineLayerHandler.layer!);
-    }
-
+    // рисуем селектор
     if (isEnabledSelector) {
-      _drawSelector(context, offset);
+      _drawSelector(context.canvas, offset);
     }
   }
 
   // --- Utils --- //
+
+  void _initializeAnimation(AnimationStyle animationStyle) {
+    _animationController = AnimationController(vsync: this, duration: animationStyle.duration);
+    _parentAnimation = CurvedAnimation(parent: _animationController, curve: animationStyle.curve ?? Curves.easeInOut);
+  }
 
   Rect _dragAnchor(Offset center) =>
       Rect.fromCenter(center: center, width: kDragArea, height: selfConstraints.maxHeight);
@@ -1068,10 +935,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
   // --- Paint --- //
 
-  void _drawSelector(PaintingContext context, Offset offset) {
-    final canvas = context.canvas;
-
-    selectorDecoration.paint(canvas, _selectorRect, selectorBorder, textDirection);
+  void _drawSelector(Canvas canvas, Offset offset) {
+    selectorDecoration.paint(canvas, _selectorRect, effectiveSelectorBorder, textDirection);
   }
 
   void _drawTimescale(Canvas canvas) {
@@ -1102,8 +967,6 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
         _drawTimeLabel(canvas: canvas, offset: hourOffset, minuteShift: minuteShift);
       }
     }
-
-    _drawHatch(canvas);
   }
 
   void _drawHatch(Canvas canvas) {
@@ -1185,17 +1048,30 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     timePainter.paint(canvas, Offset(dx, offset.dy + kTopPaddingOfTimeLabel));
   }
 
-  // ------------- //
-
   void _redrawTimeScale() {
     _timelineLayerHandler.layer = null;
   }
 
-  @override
-  void dispose() {
+  void _redrawHatch() {
+    _hatchLayerHandler.layer = null;
+  }
+
+  // ------------- //
+
+  bool _collisionDetectorPredicate(Rect rect) {
+    return _selectorRect.right <= rect.right && _selectorRect.left >= rect.left;
+  }
+
+  void _disposeAnimations() {
     _parentAnimation.dispose();
     _animationController.dispose();
+  }
 
+  @override
+  void dispose() {
+    _disposeAnimations();
+
+    _hatchLayerHandler.layer = null;
     _timelineLayerHandler.layer = null;
     for (var painter in _textPainterCache.values) {
       painter.dispose();
@@ -1205,12 +1081,24 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   }
 }
 
-extension TimeOfDayExtension on TimeOfDay {
-  int get totalMinutes => (hour * TimeOfDay.minutesPerHour) + minute;
+void drawOnPictureLayer({
+  required LayerHandle<PictureLayer> layer,
+  required PaintingContext context,
+  required Size size,
+  required ValueSetter<Canvas> draw,
+}) {
+  if (layer.layer == null) {
+    final pictureRecorder = PictureRecorder();
+    final canvas = Canvas(pictureRecorder);
 
-  bool operator <(TimeOfDay value) => totalMinutes < value.totalMinutes;
-  bool operator <=(TimeOfDay value) => totalMinutes <= value.totalMinutes;
+    draw(canvas);
 
-  bool operator >(TimeOfDay value) => totalMinutes > value.totalMinutes;
-  bool operator >=(TimeOfDay value) => totalMinutes >= value.totalMinutes;
+    final picture = pictureRecorder.endRecording();
+
+    layer.layer = PictureLayer(Rect.fromLTWH(0, 0, size.width, size.height))..picture = picture;
+  }
+
+  if (layer.layer != null) {
+    context.addLayer(layer.layer!);
+  }
 }

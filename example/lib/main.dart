@@ -122,7 +122,7 @@ class _TimelineScrollState extends State<TimelineScroll> {
                                             );
                                             if (end == null) return;
 
-                                            if (end < begin) return;
+                                            if (end.hour > 0 && end < begin) return;
                                             setState(() {
                                               initial = TimeRange(begin: begin, end: end);
                                             });
@@ -232,7 +232,7 @@ class _TimelineScrollState extends State<TimelineScroll> {
                                             );
                                             if (end == null) return;
 
-                                            if (end < begin) return;
+                                            if (end.hour > 0 && end < begin) return;
 
                                             setState(() {
                                               ranges.add(TimeRange(begin: begin, end: end));
@@ -259,7 +259,7 @@ class _TimelineScrollState extends State<TimelineScroll> {
                         ValueListenableBuilder(
                           valueListenable: valueNotifier,
                           builder: (context, value, child) {
-                            var effectiveValue = value ?? initial ?? TimeRange.empty;
+                            var effectiveValue = value ?? initial ?? TimeRange();
                             return Offstage(
                               offstage: value == null && initial == null,
                               child: FittedBox(
@@ -292,6 +292,16 @@ class _TimelineScrollState extends State<TimelineScroll> {
                               minSelectorRange: minSelectorRange,
                               availableRanges: ranges.toSet(),
                               strokeWidth: stroke,
+                              selectorDecoration: SelectorDecoration(
+                                gradient: LinearGradient(colors: [Colors.blue, Colors.teal]),
+                                border: BoxBorder.all(color: Colors.grey, width: 8),
+                                borderRadius: BorderRadius.horizontal(
+                                  right: Radius.circular(8),
+                                  left: Radius.circular(8),
+                                ),
+                                errorBorder: BoxBorder.all(color: Colors.redAccent, width: 8),
+                                dragHandleColor: Colors.white54,
+                              ),
                               onChange: (value) {
                                 valueNotifier.value = value;
                               },
