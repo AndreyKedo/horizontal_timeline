@@ -81,10 +81,13 @@ class TimeRange {
   TimeRange copyWith({TimeOfDay? begin, TimeOfDay? end}) => TimeRange(begin: begin ?? this.begin, end: end ?? this.end);
 
   @override
-  int get hashCode => Object.hash(runtimeType, begin, end);
+  int get hashCode => Object.hash(runtimeType, beginMinute, endMinute);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is TimeRange && runtimeType == other.runtimeType && begin == other.begin && end == other.end;
+      other is TimeRange &&
+          runtimeType == other.runtimeType &&
+          beginMinute == other.beginMinute &&
+          endMinute == other.endMinute;
 }
