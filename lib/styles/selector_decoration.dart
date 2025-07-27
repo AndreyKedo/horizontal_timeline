@@ -193,8 +193,8 @@ class SelectorDecoration with Diagnosticable {
   ///
   /// Обратите внимание, если вы указали [border] или [errorBorder], то вам надо явно передать именованный
   /// параметр [border] в метод.
-  void paint(Canvas canvas, Rect rect, [BoxBorder? border, TextDirection? textDirection]) =>
-      _SelectorDecorationPainter(this).paint(canvas, rect, border, textDirection);
+  void paint(Canvas canvas, Rect rect, [BoxBorder? border]) =>
+      _SelectorDecorationPainter(this).paint(canvas, rect, border);
 }
 
 class _SelectorDecorationPainter {
@@ -205,7 +205,7 @@ class _SelectorDecorationPainter {
   Paint? _cachedBackgroundPaint;
   Rect? _rectForCachedBackgroundPaint;
 
-  Paint _getBackgroundPaint(Rect rect, TextDirection? textDirection) {
+  Paint _getBackgroundPaint(Rect rect) {
     assert(decoration.gradient != null || _rectForCachedBackgroundPaint == null);
 
     if (_cachedBackgroundPaint == null || (decoration.gradient != null && _rectForCachedBackgroundPaint != rect)) {
@@ -217,7 +217,7 @@ class _SelectorDecorationPainter {
         paint.color = decoration.color!;
       }
       if (decoration.gradient != null) {
-        paint.shader = decoration.gradient!.createShader(rect, textDirection: textDirection);
+        paint.shader = decoration.gradient!.createShader(rect);
         _rectForCachedBackgroundPaint = rect;
       }
       _cachedBackgroundPaint = paint;
@@ -226,15 +226,15 @@ class _SelectorDecorationPainter {
     return _cachedBackgroundPaint!;
   }
 
-  void _paintBox(Canvas canvas, Rect rect, Paint paint, TextDirection? textDirection) {
+  void _paintBox(Canvas canvas, Rect rect, Paint paint) {
     if (decoration.borderRadius == null || decoration.borderRadius == BorderRadius.zero) {
       canvas.drawRect(rect, paint);
     } else {
-      canvas.drawRRect(decoration.borderRadius!.resolve(textDirection).toRRect(rect), paint);
+      canvas.drawRRect(decoration.borderRadius!.resolve(null).toRRect(rect), paint);
     }
   }
 
-  void _paintShadows(Canvas canvas, Rect rect, TextDirection? textDirection) {
+  void _paintShadows(Canvas canvas, Rect rect) {
     if (decoration.boxShadow == null) {
       return;
     }
@@ -248,7 +248,7 @@ class _SelectorDecorationPainter {
         }
         return true;
       }());
-      _paintBox(canvas, bounds, paint, textDirection);
+      _paintBox(canvas, bounds, paint);
       assert(() {
         if (debugDisableShadows && boxShadow.blurStyle == BlurStyle.outer) {
           canvas.restore();
@@ -265,7 +265,7 @@ class _SelectorDecorationPainter {
     return 0;
   }
 
-  Rect _adjustedRectOnOutlinedBorder(Rect rect, BoxBorder? border, TextDirection? textDirection) {
+  Rect _adjustedRectOnOutlinedBorder(Rect rect, BoxBorder? border) {
     if (border == null) {
       return rect;
     }
@@ -287,10 +287,8 @@ class _SelectorDecorationPainter {
         rect.bottom - insets.bottom,
       );
     } else if (border case final BorderDirectional border) {
-      if (textDirection == null) return rect;
-
-      final BorderSide leftSide = textDirection == TextDirection.rtl ? border.end : border.start;
-      final BorderSide rightSide = textDirection == TextDirection.rtl ? border.start : border.end;
+      final BorderSide leftSide = border.start;
+      final BorderSide rightSide = border.end;
 
       final EdgeInsets insets =
           EdgeInsets.fromLTRB(
@@ -311,22 +309,17 @@ class _SelectorDecorationPainter {
     return rect;
   }
 
-  void _paintBackgroundColor(Canvas canvas, Rect rect, BoxBorder? border, TextDirection? textDirection) {
+  void _paintBackgroundColor(Canvas canvas, Rect rect, BoxBorder? border) {
     if (decoration.color != null || decoration.gradient != null) {
-      final Rect adjustedRect = _adjustedRectOnOutlinedBorder(rect, border, textDirection);
-      _paintBox(canvas, adjustedRect, _getBackgroundPaint(rect, textDirection), textDirection);
+      final Rect adjustedRect = _adjustedRectOnOutlinedBorder(rect, border);
+      _paintBox(canvas, adjustedRect, _getBackgroundPaint(rect));
     }
   }
 
-  void paint(Canvas canvas, Rect rect, [BoxBorder? border, TextDirection? textDirection]) {
-    _paintShadows(canvas, rect, textDirection);
-    _paintBackgroundColor(canvas, rect, border, textDirection);
-    border?.paint(
-      canvas,
-      rect,
-      borderRadius: decoration.borderRadius?.resolve(textDirection),
-      textDirection: textDirection,
-    );
+  void paint(Canvas canvas, Rect rect, [BoxBorder? border]) {
+    _paintShadows(canvas, rect);
+    _paintBackgroundColor(canvas, rect, border);
+    border?.paint(canvas, rect, borderRadius: decoration.borderRadius?.resolve(null));
 
     final dragHandleColor = decoration.dragHandleColor;
     if (dragHandleColor == null) return;

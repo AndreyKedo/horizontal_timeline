@@ -23,6 +23,14 @@ bool debugTimeOfDayCheck(TimeOfDay value) {
   return true;
 }
 
+TimeOfDay timeOfDayFromMinute(num value) {
+  assert(value <= kMinutesPerDay && value > 0, 'Время должно быть в диапазоне от 0 до 24');
+  final hours = value ~/ TimeOfDay.minutesPerHour;
+  final minutes = value.remainder(TimeOfDay.minutesPerHour).round();
+
+  return TimeOfDay(hour: hours, minute: minutes);
+}
+
 /// Диапазон времени.
 @immutable
 class TimeRange {
@@ -61,17 +69,23 @@ class TimeRange {
   static final day = TimeRange();
 
   /// Возвращает продолжительность диапазона в виде [TimeOfDay].
-  TimeOfDay get time {
-    int hours = (this.minutes ~/ TimeOfDay.minutesPerHour).remainder(TimeOfDay.hoursPerDay);
-    int minutes = this.minutes.remainder(TimeOfDay.minutesPerHour);
-    return TimeOfDay(hour: hours, minute: minutes);
-  }
+  TimeOfDay get time => timeOfDayFromMinute(minutes);
+  //  {
+  //   int hours = this.minutes ~/ TimeOfDay.minutesPerHour;
+
+  //   int minutes = this.minutes.remainder(TimeOfDay.minutesPerHour);
+  //   return TimeOfDay(hour: hours, minute: minutes);
+  // }
 
   /// Проверяет, пересекается ли заданное время [value] с этим диапазоном.
-  bool overlaps(TimeOfDay value) {
+  bool overlaps(TimeOfDay value, {bool include = true}) {
     final inMinute = value.totalMinutes;
 
-    return inMinute >= beginMinute && inMinute <= endMinute;
+    if (include) {
+      return inMinute >= beginMinute && inMinute <= endMinute;
+    } else {
+      return inMinute > beginMinute && inMinute < endMinute;
+    }
   }
 
   /// Создает копию этого диапазона с возможностью изменить начало и/или конец.

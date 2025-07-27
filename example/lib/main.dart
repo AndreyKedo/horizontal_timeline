@@ -92,160 +92,164 @@ class _TimelineScrollState extends State<TimelineScroll> {
                       child: LayoutBuilder(
                         builder: (context, constraints) {
                           final isSmall = constraints.maxWidth <= 600;
-                          return Flex(
-                            direction: isSmall ? Axis.vertical : Axis.horizontal,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            spacing: 16,
-                            children: [
-                              Flexible(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  spacing: 16,
-                                  children: [
-                                    Wrap(
-                                      spacing: 16,
-                                      runSpacing: 16,
-                                      children: [
-                                        OutlinedButton(
-                                          onPressed: () async {
-                                            final begin = await showTimePicker(
-                                              context: context,
-                                              initialTime: minSelectorRange,
-                                            );
-                                            if (begin == null) return;
+                          return AnimatedSwitcher(
+                            duration: Durations.medium1,
+                            child: Flex(
+                              key: ValueKey(isSmall),
+                              direction: isSmall ? Axis.vertical : Axis.horizontal,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              spacing: 16,
+                              children: [
+                                Flexible(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    spacing: 16,
+                                    children: [
+                                      Wrap(
+                                        spacing: 16,
+                                        runSpacing: 16,
+                                        children: [
+                                          OutlinedButton(
+                                            onPressed: () async {
+                                              final begin = await showTimePicker(
+                                                context: context,
+                                                initialTime: minSelectorRange,
+                                              );
+                                              if (begin == null) return;
 
-                                            if (!context.mounted) return;
-                                            final end = await showTimePicker(
-                                              context: context,
-                                              initialTime: minSelectorRange,
-                                            );
-                                            if (end == null) return;
+                                              if (!context.mounted) return;
+                                              final end = await showTimePicker(
+                                                context: context,
+                                                initialTime: minSelectorRange,
+                                              );
+                                              if (end == null) return;
 
-                                            if (end.hour > 0 && end < begin) return;
-                                            setState(() {
-                                              initial = TimeRange(begin: begin, end: end);
-                                            });
-                                          },
-                                          child: Text('Set selector position'),
-                                        ),
-                                        OutlinedButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              initial = null;
-                                            });
-                                          },
-                                          child: Text('Reset'),
-                                        ),
-                                      ],
-                                    ),
-                                    OutlinedButton(
-                                      onPressed: () async {
-                                        final value = await showTimePicker(
-                                          context: context,
-                                          initialTime: minSelectorRange,
-                                        );
-                                        if (value == null ||
-                                            value.totalMinutes < defaultMinSelectorRange.totalMinutes) {
-                                          return;
-                                        }
+                                              if (end.hour > 0 && end < begin) return;
+                                              setState(() {
+                                                initial = TimeRange(begin: begin, end: end);
+                                              });
+                                            },
+                                            child: Text('Set selector position'),
+                                          ),
+                                          OutlinedButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                initial = null;
+                                              });
+                                            },
+                                            child: Text('Reset'),
+                                          ),
+                                        ],
+                                      ),
+                                      OutlinedButton(
+                                        onPressed: () async {
+                                          final value = await showTimePicker(
+                                            context: context,
+                                            initialTime: minSelectorRange,
+                                          );
+                                          if (value == null ||
+                                              value.totalMinutes < defaultMinSelectorRange.totalMinutes) {
+                                            return;
+                                          }
 
-                                        setState(() {
-                                          minSelectorRange = value;
-                                        });
-                                      },
-                                      child: Text('Min selector range'),
-                                    ),
-                                    Flexible(
-                                      child: Slider.adaptive(
-                                        value: stroke,
-                                        min: 1,
-                                        max: 3,
-                                        divisions: 3,
-                                        onChanged: (value) {
                                           setState(() {
-                                            stroke = value;
+                                            minSelectorRange = value;
                                           });
                                         },
+                                        child: Text('Min selector range'),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (!isSmall)
-                                LayoutBuilder(
-                                  builder:
-                                      (context, constraints) => ConstrainedBox(
-                                        constraints: BoxConstraints.expand(width: 1, height: constraints.maxHeight),
-                                        child: VerticalDivider(),
-                                      ),
-                                ),
-                              Flexible(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text('Ranges', style: Theme.of(context).textTheme.headlineSmall),
-                                        Flexible(
-                                          child: ConstrainedBox(
-                                            constraints: BoxConstraints.expand(
-                                              width: 300,
-                                              height: constraints.maxHeight,
-                                            ),
-                                            child: ListView.builder(
-                                              itemCount: ranges.length,
-                                              padding: EdgeInsets.symmetric(vertical: 16),
-                                              itemBuilder: (context, index) {
-                                                final item = ranges.elementAt(index);
-
-                                                return ListTile(
-                                                  leading: Text('${index + 1}.'),
-                                                  title: Text(_rangeToString(item)),
-                                                  trailing: IconButton(
-                                                    onPressed: () {
-                                                      setState(() {
-                                                        ranges.remove(item);
-                                                      });
-                                                    },
-                                                    icon: Icon(Icons.remove),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                        OutlinedButton(
-                                          onPressed: () async {
-                                            final begin = await showTimePicker(
-                                              context: context,
-                                              initialTime: minSelectorRange,
-                                            );
-                                            if (begin == null) return;
-
-                                            if (!context.mounted) return;
-                                            final end = await showTimePicker(
-                                              context: context,
-                                              initialTime: minSelectorRange,
-                                            );
-                                            if (end == null) return;
-
-                                            if (end.hour > 0 && end < begin) return;
-
+                                      Flexible(
+                                        child: Slider.adaptive(
+                                          value: stroke,
+                                          min: 1,
+                                          max: 3,
+                                          divisions: 3,
+                                          onChanged: (value) {
                                             setState(() {
-                                              ranges.add(TimeRange(begin: begin, end: end));
+                                              stroke = value;
                                             });
                                           },
-                                          child: Text('Add'),
                                         ),
-                                      ],
-                                    );
-                                  },
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                                if (!isSmall)
+                                  LayoutBuilder(
+                                    builder:
+                                        (context, constraints) => ConstrainedBox(
+                                          constraints: BoxConstraints.expand(width: 1, height: constraints.maxHeight),
+                                          child: VerticalDivider(),
+                                        ),
+                                  ),
+                                Flexible(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text('Ranges', style: Theme.of(context).textTheme.headlineSmall),
+                                          Flexible(
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints.expand(
+                                                width: 300,
+                                                height: constraints.maxHeight,
+                                              ),
+                                              child: ListView.builder(
+                                                itemCount: ranges.length,
+                                                padding: EdgeInsets.symmetric(vertical: 16),
+                                                itemBuilder: (context, index) {
+                                                  final item = ranges.elementAt(index);
+
+                                                  return ListTile(
+                                                    leading: Text('${index + 1}.'),
+                                                    title: Text(_rangeToString(item)),
+                                                    trailing: IconButton(
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          ranges.remove(item);
+                                                        });
+                                                      },
+                                                      icon: Icon(Icons.remove),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                          OutlinedButton(
+                                            onPressed: () async {
+                                              final begin = await showTimePicker(
+                                                context: context,
+                                                initialTime: minSelectorRange,
+                                              );
+                                              if (begin == null) return;
+
+                                              if (!context.mounted) return;
+                                              final end = await showTimePicker(
+                                                context: context,
+                                                initialTime: minSelectorRange,
+                                              );
+                                              if (end == null) return;
+
+                                              if (end.hour > 0 && end < begin) return;
+
+                                              setState(() {
+                                                ranges.add(TimeRange(begin: begin, end: end));
+                                              });
+                                            },
+                                            child: Text('Add'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
                         },
                       ),
@@ -282,7 +286,7 @@ class _TimelineScrollState extends State<TimelineScroll> {
                           },
                         ),
                         ConstrainedBox(
-                          constraints: BoxConstraints.loose(Size.fromHeight(95)),
+                          constraints: BoxConstraints.loose(Size.fromHeight(75)),
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             hitTestBehavior: HitTestBehavior.deferToChild,
@@ -293,14 +297,16 @@ class _TimelineScrollState extends State<TimelineScroll> {
                               availableRanges: ranges.toSet(),
                               strokeWidth: stroke,
                               selectorDecoration: SelectorDecoration(
-                                gradient: LinearGradient(colors: [Colors.blue, Colors.teal]),
-                                border: BoxBorder.all(color: Colors.grey, width: 8),
+                                color: Colors.blue.withAlpha(35),
+                                border: BoxBorder.symmetric(vertical: BorderSide(color: Colors.black, width: 8)),
                                 borderRadius: BorderRadius.horizontal(
-                                  right: Radius.circular(8),
-                                  left: Radius.circular(8),
+                                  right: Radius.circular(3),
+                                  left: Radius.circular(3),
                                 ),
-                                errorBorder: BoxBorder.all(color: Colors.redAccent, width: 8),
-                                dragHandleColor: Colors.white54,
+                                errorBorder: BoxBorder.symmetric(
+                                  vertical: BorderSide(color: Colors.redAccent, width: 8),
+                                ),
+                                dragHandleColor: Colors.white,
                               ),
                               onChange: (value) {
                                 valueNotifier.value = value;

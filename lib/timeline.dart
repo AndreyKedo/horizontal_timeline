@@ -7,6 +7,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:horizontal_timeline/render_utils.dart';
 import 'package:horizontal_timeline/styles/hatch_style.dart';
 import 'package:horizontal_timeline/styles/selector_decoration.dart';
 import 'package:horizontal_timeline/time_extension.dart';
@@ -24,10 +25,7 @@ const kMinutesShift = 15;
 const kSteps = kMinutesPerDay / kMinutesShift;
 
 /// Отступ между текстом и нижней границей шкалы времени.
-const kTopPaddingOfTimeLabel = 6;
-
-/// Процент высоты занимаемой области шкалы.
-const kSelectorAreaHeightPercentage = 0.6;
+const kTopPaddingOfTimeLabel = 6.0;
 
 /// Ширина области в пределах которой работаю жесты захвата за левый и правый край области выделения.
 const kDragArea = 48.0;
@@ -153,6 +151,7 @@ class Timeline extends LeafRenderObjectWidget {
     this.minSelectorRange = const TimeOfDay(hour: 0, minute: 30),
     this.scrollAnimationStyle,
     this.animationStyle,
+    this.space = kTopPaddingOfTimeLabel,
   });
 
   /// Начальное значение диапазона времени. Если равно null элемент выбора времени не отображается.
@@ -197,6 +196,9 @@ class Timeline extends LeafRenderObjectWidget {
   /// Стиль анимации элемента выбора диапазона. По умолчанию [kDefaultScrollAnimationStyle].
   final AnimationStyle? animationStyle;
 
+  /// Отступ между текстом и нижней границей шкалы времени.
+  final double space;
+
   void _debug() {
     assert(debugTimeOfDayCheck(minSelectorRange));
 
@@ -213,17 +215,16 @@ class Timeline extends LeafRenderObjectWidget {
     _debug();
 
     final materialLocalization = MaterialLocalizations.of(context);
-    final textDirection = Directionality.of(context);
 
     final scrollableState = Scrollable.of(context, axis: Axis.horizontal);
 
     return _TimelineRenderObject(
       gap: gap,
+      space: space,
       timeScaleColor: timeScaleColor,
       strokeWidth: strokeWidth,
       localization: materialLocalization,
       timeLabelStyle: timeLabelStyle,
-      textDirection: textDirection,
       enabledLabelStyle: enabledLabelStyle,
       disabledLabelStyle: disabledLabelStyle,
       availableRanges: availableRanges,
@@ -245,16 +246,15 @@ class Timeline extends LeafRenderObjectWidget {
     _debug();
 
     final materialLocalization = MaterialLocalizations.of(context);
-    final textDirection = Directionality.of(context);
     final scrollableState = Scrollable.of(context, axis: Axis.horizontal);
 
     renderObject
       ..gap = gap
+      ..space = space
       ..timeScaleColor = timeScaleColor
       ..strokeWidth = strokeWidth
       ..localization = materialLocalization
       ..timeLabelStyle = timeLabelStyle
-      ..textDirection = textDirection
       ..enabledLabelStyle = enabledLabelStyle
       ..disabledLabelStyle = disabledLabelStyle
       ..availableRanges = availableRanges
@@ -273,13 +273,13 @@ class Timeline extends LeafRenderObjectWidget {
 class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObject {
   _TimelineRenderObject({
     required double gap,
+    required double space,
     required Color timeScaleColor,
     required double strokeWidth,
     required MaterialLocalizations localization,
     required TextStyle timeLabelStyle,
     required TextStyle enabledLabelStyle,
     required TextStyle disabledLabelStyle,
-    required TextDirection textDirection,
     required Set<TimeRange> availableRanges,
     required HatchStyle hatchStyle,
     required TimeOfDay minSelectorRange,
@@ -292,12 +292,12 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     required ScrollableState scrollable,
   }) : _scrollable = scrollable,
        _gap = gap,
+       _space = space,
        _initialSelectorRange = initialSelectorValue,
        _timeScaleColor = timeScaleColor,
        _strokeWidth = strokeWidth,
        _localization = localization,
        _timeLabelStyle = timeLabelStyle,
-       _textDirection = textDirection,
        _enabledLabelStyle = enabledLabelStyle,
        _disabledLabelStyle = disabledLabelStyle,
        _availableRanges = availableRanges,
@@ -312,12 +312,14 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     _initializeAnimation(animationStyle);
   }
 
-  // Paint optimization
-  final _textPainterCache = <int, TextPainter>{};
-
   final _timelineLayerHandler = LayerHandle<PictureLayer>();
 
+  final _labelsLayerHandler = LayerHandle<PictureLayer>();
+
   final _hatchLayerHandler = LayerHandle<PictureLayer>();
+
+  // Paint optimization
+  late final _textPainter = TextPainter(textDirection: TextDirection.ltr, maxLines: 1);
 
   /// Animation
   late AnimationController _animationController;
@@ -333,20 +335,19 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   // Доступная для выбора зона
   Set<Rect> _availableZones = const <Rect>{};
 
-  // Нужен для обнаружения прокрутки
-  Offset _startTapPosition = Offset.zero;
+  // Размер шкалы(без временных меток)
+  Size timeScaleSize = Size.zero;
 
   // Флаги жестов
   bool _isDraggingRightCorner = false;
   bool _isDraggingLeftCorner = false;
   bool _isTap = false;
   bool _isMove = false;
-
-  /// Размер шкалы без временных меток
-  Size get timeScaleSize => Size(size.width, size.height * kSelectorAreaHeightPercentage);
+  // Нужен для обнаружения прокрутки
+  Offset _startTapPosition = Offset.zero;
 
   /// Ограничения временной шкалы
-  BoxConstraints get selfConstraints => BoxConstraints.loose(timeScaleSize);
+  BoxConstraints get timeScaleConstraints => BoxConstraints.loose(timeScaleSize);
 
   /// Минимальная ширина выделителя времени
   double get minSelectorWidth => minuteToOffset(_minSelectorRange.totalMinutes / kMinutesShift);
@@ -356,7 +357,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   Rect get viewportRect {
     final position = _scrollable.position;
 
-    return Offset(position.pixels, .0) & Size(position.viewportDimension, selfConstraints.maxHeight);
+    return Offset(position.pixels, .0) & Size(position.viewportDimension, timeScaleConstraints.maxHeight);
   }
 
   /// Включен/Выключен выделитель времени
@@ -371,11 +372,13 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     return borderPainter;
   }
 
-  Offset get _leftEdgeCenter =>
-      _selectorRect.centerLeft - Offset((kDragArea / 2) - effectiveSelectorBorder.dimensions.horizontal / 2, .0);
+  Offset get _leftEdgeCenter {
+    return _selectorRect.centerLeft - Offset((kDragArea / 2) - effectiveSelectorBorder.dimensions.horizontal / 2, .0);
+  }
 
-  Offset get _rightEdgeCenter =>
-      _selectorRect.centerRight + Offset((kDragArea / 2) - effectiveSelectorBorder.dimensions.horizontal / 2, .0);
+  Offset get _rightEdgeCenter {
+    return _selectorRect.centerRight + Offset((kDragArea / 2) - effectiveSelectorBorder.dimensions.horizontal / 2, .0);
+  }
 
   OnChangeSelectorRange? _onChangeSelectorRange;
   OnChangeSelectorRange? get onChangeSelectorRange => _onChangeSelectorRange;
@@ -391,10 +394,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     if (setEquals(value, _availableRanges)) return;
 
     _availableRanges = value;
-    _textPainterCache.clear();
     _availableZones = _rangesToGeometry(value, timeScaleSize);
-    _redrawHatch();
-    _redrawTimeScale();
+    _redrawAvailableRanges();
     markNeedsPaint();
   }
 
@@ -466,7 +467,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     if (identical(value, _localization)) return;
 
     _localization = value;
-    _redrawTimeScale();
+    _redrawLabels();
     markNeedsPaint();
   }
 
@@ -480,25 +481,13 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     markNeedsPaint();
   }
 
-  TextDirection _textDirection;
-  TextDirection get textDirection => _textDirection;
-  set textDirection(TextDirection value) {
-    if (_textDirection == value) return;
-
-    _textPainterCache.clear();
-    _textDirection = value;
-    _redrawTimeScale();
-    markNeedsPaint();
-  }
-
   TextStyle _timeLabelStyle;
   TextStyle get timeLabelStyle => _timeLabelStyle;
   set timeLabelStyle(TextStyle value) {
     if (value == _timeLabelStyle) return;
 
-    _textPainterCache.clear();
     _timeLabelStyle = value;
-    _redrawTimeScale();
+    _redrawLabels();
     markNeedsPaint();
   }
 
@@ -507,9 +496,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   set enabledLabelStyle(TextStyle value) {
     if (value == _enabledLabelStyle) return;
 
-    _textPainterCache.clear();
     _enabledLabelStyle = value;
-    _redrawTimeScale();
+    _redrawLabels();
     markNeedsPaint();
   }
 
@@ -518,9 +506,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   set disabledLabelStyle(TextStyle value) {
     if (value == _disabledLabelStyle) return;
 
-    _textPainterCache.clear();
     _disabledLabelStyle = value;
-    _redrawTimeScale();
+    _redrawLabels();
     markNeedsPaint();
   }
 
@@ -555,8 +542,18 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     if (value == _gap) return;
 
     _gap = value;
+    _redrawAvailableRanges();
     _redrawTimeScale();
-    markNeedsLayoutForSizedByParentChange();
+    markParentNeedsLayout();
+  }
+
+  double _space;
+  double get space => _space;
+  set space(double value) {
+    if (value == _space) return;
+
+    _space = value;
+    markNeedsLayout();
   }
 
   //-------------------------------
@@ -570,13 +567,16 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   @override
   Size computeDryLayout(covariant BoxConstraints constraints) {
     _redrawTimeScale();
+    _redrawAvailableRanges();
+
     final size = constraints.constrain(Size.fromWidth(_gap * kSteps));
 
-    final scaleSize = Size(size.width, size.height * kSelectorAreaHeightPercentage);
-    _availableZones = _rangesToGeometry(availableRanges, scaleSize);
+    timeScaleSize = layoutTimeline(BoxConstraints.tight(size));
+
+    _availableZones = _rangesToGeometry(availableRanges, timeScaleSize);
 
     if (initialSelectorRange != null) {
-      _selectorRect = _getDefaultSelectorRect(scaleSize, initialSelectorRange!);
+      _selectorRect = _getDefaultSelectorRect(timeScaleSize, initialSelectorRange!);
 
       /// Фокусирует на области выбора доступного времени
       /// Работает только при наличие предка типа *Viewport
@@ -586,12 +586,31 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     return size;
   }
 
+  Size layoutTimeline(BoxConstraints layoutSize) {
+    // Рассчитываем сколько по высоте займёт текст
+    final maxFontSize = math.max(
+      timeLabelStyle.fontSize ?? 0,
+      math.max(disabledLabelStyle.fontSize ?? 0, enabledLabelStyle.fontSize ?? 0),
+    );
+    final maxHeight = math.max(
+      timeLabelStyle.height ?? 0,
+      math.max(disabledLabelStyle.height ?? 0, enabledLabelStyle.height ?? 0),
+    );
+    _textPainter
+      ..text = TextSpan(
+        text: localization.formatTimeOfDay(TimeRange.day.begin),
+        style: TextStyle(fontSize: maxFontSize, height: maxHeight),
+      )
+      ..layout(maxWidth: layoutSize.maxWidth);
+    return Size(layoutSize.maxWidth, layoutSize.maxHeight - (_textPainter.height + space));
+  }
+
   @override
   void debugPaint(PaintingContext context, Offset offset) {
     if (debugPaintSizeEnabled) {
       final canvas = context.canvas;
 
-      final scrollOffset = Offset(_scrollable.position.pixels + 2, selfConstraints.maxHeight / 2);
+      final scrollOffset = Offset(_scrollable.position.pixels + 2, timeScaleConstraints.maxHeight / 2);
 
       /// Draw scroll offset
       canvas.drawPoints(
@@ -693,11 +712,14 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    // кэшируем слой шкалы для дальнейшего переиспользовать
-    drawOnPictureLayer(context: context, layer: _timelineLayerHandler, size: size, draw: _drawTimescale);
+    // кэшируем слой шкалы
+    drawOnPictureLayer(layer: _timelineLayerHandler, context: context, size: size, draw: _drawTimescale);
+
+    // кэшируем слой текста
+    drawOnPictureLayer(layer: _labelsLayerHandler, context: context, size: size, draw: _drawLabels);
 
     // кэшируем слой заштриховки
-    drawOnPictureLayer(context: context, layer: _hatchLayerHandler, size: size, draw: _drawHatch);
+    drawOnPictureLayer(layer: _hatchLayerHandler, context: context, size: size, draw: _drawHatch);
 
     // рисуем селектор
     if (isEnabledSelector) {
@@ -713,7 +735,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   }
 
   Rect _dragAnchor(Offset center) =>
-      Rect.fromCenter(center: center, width: kDragArea, height: selfConstraints.maxHeight);
+      Rect.fromCenter(center: center, width: kDragArea, height: timeScaleConstraints.maxHeight);
 
   bool _isNearLeftEdge(Offset position) => _dragAnchor(_leftEdgeCenter).contains(position);
 
@@ -746,8 +768,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       final startPosition = minuteToOffset(range.beginMinute / kMinutesShift);
       final endPosition = minuteToOffset(range.endMinute / kMinutesShift);
 
-      final rect = Rect.fromLTRB(startPosition, .0, endPosition, size.height);
-      geometrySet.add(rect);
+      geometrySet.add(Rect.fromLTRB(startPosition, .0, endPosition, size.height));
     }
 
     return geometrySet;
@@ -756,14 +777,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   TimeOfDay _dxToTime(double dx) {
     final shift = dx / gap;
     final totalMinutes = shift * kMinutesShift;
-    final hours = switch (totalMinutes) {
-      < TimeOfDay.minutesPerHour * TimeOfDay.hoursPerDay => (totalMinutes ~/ TimeOfDay.minutesPerHour).remainder(
-        TimeOfDay.hoursPerDay,
-      ),
-      _ => 24,
-    };
-    final minutes = totalMinutes.remainder(TimeOfDay.minutesPerHour).round();
-    return TimeOfDay(hour: hours, minute: minutes);
+    return timeOfDayFromMinute(totalMinutes);
   }
 
   void _focusOnSelector(Rect selector, [bool animated = false]) {
@@ -783,6 +797,10 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   bool isHour(int remainder) => remainder == 0;
 
   double minuteToOffset(num minute) => minute * gap;
+
+  bool _collisionDetectorPredicate(Rect rect) {
+    return _selectorRect.right <= rect.right && _selectorRect.left >= rect.left;
+  }
 
   // ------------- //
 
@@ -846,9 +864,9 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   void _updateSelectorPosition(Offset position) {
     final dx = _snapToSegment(globalToLocal(position).dx);
 
-    var left = selfConstraints.constrainWidth(dx);
+    var left = timeScaleConstraints.constrainWidth(dx);
 
-    if (left + _selectorRect.width >= selfConstraints.maxWidth) {
+    if (left + _selectorRect.width >= timeScaleConstraints.maxWidth) {
       left -= _selectorRect.width;
     }
 
@@ -859,10 +877,10 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   }
 
   void _updateSelectorSizeByOffset(Offset offset, Offset delta) {
-    var dx = offset.dx;
+    final dx = offset.dx;
 
-    final leftExtent = clampDouble(viewportRect.left, .0, selfConstraints.maxWidth);
-    final rightExtent = math.min(viewportRect.right, selfConstraints.maxWidth);
+    final leftExtent = clampDouble(viewportRect.left, .0, timeScaleConstraints.maxWidth);
+    final rightExtent = math.min(viewportRect.right, timeScaleConstraints.maxWidth);
 
     if (_isDraggingLeftCorner) {
       final width = (_selectorRect.left - dx) + _selectorRect.width;
@@ -870,14 +888,15 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       final newRect = Rect.fromLTWH(
         dx,
         _selectorRect.top,
-        clampDouble(width, minSelectorWidth, selfConstraints.maxWidth),
+        clampDouble(width, minSelectorWidth, timeScaleConstraints.maxWidth),
         _selectorRect.height,
       );
 
       if (newRect.left < 0 || newRect.right > size.width) return;
 
       // Scrolling
-      if ((offset.dx - viewportRect.left).round() <= kAxisScrollThreshold && leftExtent > selfConstraints.minWidth) {
+      if ((offset.dx - viewportRect.left).round() <= kAxisScrollThreshold &&
+          leftExtent > timeScaleConstraints.minWidth) {
         parent?.showOnScreen(
           descendant: this,
           rect: Rect.fromLTWH(viewportRect.left - kDragArea, .0, 1, newRect.height),
@@ -898,13 +917,13 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       var left = _selectorRect.left;
       var width = _selectorRect.width;
 
-      width = clampDouble(width + (dx - _selectorRect.right), minSelectorWidth, selfConstraints.maxWidth);
+      width = clampDouble(width + (dx - _selectorRect.right), minSelectorWidth, timeScaleConstraints.maxWidth);
       if (width == minSelectorWidth) {
         left -= _selectorRect.right - dx;
       }
 
       final newRect = Rect.fromLTWH(
-        selfConstraints.constrainWidth(left),
+        timeScaleConstraints.constrainWidth(left),
         _selectorRect.top,
         width,
         _selectorRect.height,
@@ -912,7 +931,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
       if (newRect.right > size.width) return;
 
-      if ((viewportRect.right - offset.dx).round() <= kAxisScrollThreshold && rightExtent < selfConstraints.maxWidth) {
+      if ((viewportRect.right - offset.dx).round() <= kAxisScrollThreshold &&
+          rightExtent < timeScaleConstraints.maxWidth) {
         parent?.showOnScreen(
           descendant: this,
           rect: Rect.fromLTWH(viewportRect.right + kDragArea, .0, 1, newRect.height),
@@ -936,11 +956,12 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   // --- Paint --- //
 
   void _drawSelector(Canvas canvas, Offset offset) {
-    selectorDecoration.paint(canvas, _selectorRect, effectiveSelectorBorder, textDirection);
+    selectorDecoration.paint(canvas, _selectorRect, effectiveSelectorBorder);
   }
 
   void _drawTimescale(Canvas canvas) {
     final height = timeScaleSize.height;
+
     final timeScalePaint =
         Paint()
           ..color = timeScaleColor
@@ -948,11 +969,10 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
           ..style = PaintingStyle.fill;
     canvas.drawLine(Offset(0, height), Offset(size.width, height), timeScalePaint);
     for (int step = 0; step < kSteps; step++) {
-      var normalizedStep = step + 1;
+      final normalizedStep = step + 1;
       final shift = gap * normalizedStep;
 
       final minuteShift = (normalizedStep * kMinutesShift);
-
       final remainder = minuteShift.remainder(TimeOfDay.minutesPerHour);
 
       final topShift = switch (remainder) {
@@ -960,11 +980,20 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
         30 => height * 0.2,
         _ => .0,
       };
-      final hourOffset = Offset(shift, height);
-      canvas.drawLine(hourOffset, Offset(shift, topShift), timeScalePaint);
+      canvas.drawLine(Offset(shift, height), Offset(shift, topShift), timeScalePaint);
+    }
+  }
+
+  void _drawLabels(Canvas canvas) {
+    for (int step = 0; step < kSteps; step++) {
+      final normalizedStep = step + 1;
+      final shift = gap * normalizedStep;
+
+      final minuteShift = (normalizedStep * kMinutesShift);
+      final remainder = minuteShift.remainder(TimeOfDay.minutesPerHour);
 
       if (isHour(remainder) && normalizedStep < kSteps) {
-        _drawTimeLabel(canvas: canvas, offset: hourOffset, minuteShift: minuteShift);
+        _drawTimeLabel(canvas: canvas, offset: Offset(shift, timeScaleSize.height), minuteShift: minuteShift);
       }
     }
   }
@@ -988,7 +1017,8 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     final cosAngle = math.cos(hatchAngle);
     final sinAngle = math.sin(hatchAngle);
 
-    for (double i = -height; i < gap * (kSteps + 2); i += hatchStyle.space) {
+    final fullWidth = timeScaleSize.width + height;
+    for (double i = -height; i < fullWidth; i += hatchStyle.space) {
       final x = i;
       final y = 0.0;
       final dx = x + height * sinAngle / cosAngle;
@@ -997,19 +1027,15 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       path.moveTo(x, y);
       path.lineTo(dx, dy);
     }
-    path.close();
 
     final availableRangesPath = Path();
-    for (var rect in _availableZones) {
+    for (final rect in _availableZones) {
       availableRangesPath.addRect(rect);
     }
-    availableRangesPath.close();
 
     final clip = Path.combine(
       PathOperation.difference,
-      Path()
-        ..addRect(Offset.zero & timeScaleSize)
-        ..close(),
+      Path()..addRect(Offset.zero & timeScaleSize),
       availableRangesPath,
     );
 
@@ -1023,29 +1049,22 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   }
 
   void _drawTimeLabel({required Canvas canvas, required Offset offset, required int minuteShift}) {
-    int hours = (minuteShift ~/ TimeOfDay.minutesPerHour).remainder(TimeOfDay.hoursPerDay);
-    int minutes = minuteShift.remainder(TimeOfDay.minutesPerHour);
+    final time = timeOfDayFromMinute(minuteShift);
 
-    TextStyle style = enabledLabelStyle;
-
-    final time = TimeOfDay(hour: hours, minute: minutes);
-
+    var style = enabledLabelStyle;
     if (!availableRanges.any((range) => range.overlaps(time))) {
       style = disabledLabelStyle;
     }
 
-    final timePainter = _textPainterCache.putIfAbsent(
-      minuteShift,
-      () => TextPainter(
-        text: TextSpan(text: localization.formatTimeOfDay(time), style: timeLabelStyle.merge(style)),
-        textDirection: textDirection,
-        maxLines: 1,
-      )..layout(),
-    );
+    _textPainter
+      ..text = TextSpan(text: localization.formatTimeOfDay(time), style: timeLabelStyle.merge(style))
+      ..plainText
+      ..layout();
 
-    final dx = offset.dx - (timePainter.width / 2);
+    final dxCenter = offset.dx - (_textPainter.width / 2);
+    final dyCenter = offset.dy + space;
 
-    timePainter.paint(canvas, Offset(dx, offset.dy + kTopPaddingOfTimeLabel));
+    _textPainter.paint(canvas, Offset(dxCenter, dyCenter));
   }
 
   void _redrawTimeScale() {
@@ -1056,11 +1075,16 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     _hatchLayerHandler.layer = null;
   }
 
-  // ------------- //
-
-  bool _collisionDetectorPredicate(Rect rect) {
-    return _selectorRect.right <= rect.right && _selectorRect.left >= rect.left;
+  void _redrawLabels() {
+    _labelsLayerHandler.layer = null;
   }
+
+  void _redrawAvailableRanges() {
+    _redrawHatch();
+    _redrawLabels();
+  }
+
+  // ------------- //
 
   void _disposeAnimations() {
     _parentAnimation.dispose();
@@ -1071,34 +1095,10 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   void dispose() {
     _disposeAnimations();
 
+    _labelsLayerHandler.layer = null;
     _hatchLayerHandler.layer = null;
     _timelineLayerHandler.layer = null;
-    for (var painter in _textPainterCache.values) {
-      painter.dispose();
-    }
-    _textPainterCache.clear();
+    _textPainter.dispose();
     super.dispose();
-  }
-}
-
-void drawOnPictureLayer({
-  required LayerHandle<PictureLayer> layer,
-  required PaintingContext context,
-  required Size size,
-  required ValueSetter<Canvas> draw,
-}) {
-  if (layer.layer == null) {
-    final pictureRecorder = PictureRecorder();
-    final canvas = Canvas(pictureRecorder);
-
-    draw(canvas);
-
-    final picture = pictureRecorder.endRecording();
-
-    layer.layer = PictureLayer(Rect.fromLTWH(0, 0, size.width, size.height))..picture = picture;
-  }
-
-  if (layer.layer != null) {
-    context.addLayer(layer.layer!);
   }
 }
