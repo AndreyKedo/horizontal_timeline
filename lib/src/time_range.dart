@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:horizontal_timeline/time_extension.dart';
+import 'package:horizontal_timeline/src/time_extension.dart';
 
 /// Количество минут в сутках.
 const kMinutesPerDay = TimeOfDay.hoursPerDay * TimeOfDay.minutesPerHour;
@@ -24,10 +24,10 @@ bool debugTimeOfDayCheck(TimeOfDay value) {
 }
 
 TimeOfDay timeOfDayFromMinute(num value) {
-  assert(value <= kMinutesPerDay && value > 0, 'Время должно быть в диапазоне от 0 до 24');
+  assert(value <= kMinutesPerDay && value >= 0, 'Время должно быть в диапазоне от 0 до 24');
   final hours = value ~/ TimeOfDay.minutesPerHour;
-  final minutes = value.remainder(TimeOfDay.minutesPerHour).round();
 
+  final minutes = value.remainder(TimeOfDay.minutesPerHour).round();
   return TimeOfDay(hour: hours, minute: minutes);
 }
 
@@ -56,11 +56,10 @@ class TimeRange {
   int get beginMinute => begin.totalMinutes;
 
   /// Возвращает конец диапазона в минутах.
-  int get endMinute {
-    if (end.hour == 0) return kMinutesPerDay;
-
-    return end.totalMinutes;
-  }
+  int get endMinute => switch (end.totalMinutes) {
+    0 => kMinutesPerDay,
+    final value => value,
+  };
 
   /// Возвращает продолжительность диапазона в минутах.
   int get minutes => endMinute - beginMinute;
@@ -70,12 +69,6 @@ class TimeRange {
 
   /// Возвращает продолжительность диапазона в виде [TimeOfDay].
   TimeOfDay get time => timeOfDayFromMinute(minutes);
-  //  {
-  //   int hours = this.minutes ~/ TimeOfDay.minutesPerHour;
-
-  //   int minutes = this.minutes.remainder(TimeOfDay.minutesPerHour);
-  //   return TimeOfDay(hour: hours, minute: minutes);
-  // }
 
   /// Проверяет, пересекается ли заданное время [value] с этим диапазоном.
   bool overlaps(TimeOfDay value, {bool include = true}) {
@@ -93,6 +86,9 @@ class TimeRange {
   /// [begin] - новое время начала (если не указано, используется текущее).
   /// [end] - новое время окончания (если не указано, используется текущее).
   TimeRange copyWith({TimeOfDay? begin, TimeOfDay? end}) => TimeRange(begin: begin ?? this.begin, end: end ?? this.end);
+
+  @override
+  String toString() => '$begin - $end';
 
   @override
   int get hashCode => Object.hash(runtimeType, beginMinute, endMinute);

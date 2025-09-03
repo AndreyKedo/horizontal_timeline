@@ -26,3 +26,11 @@
 * Updated example
 * Fixes bugs
 * [WIP] Tests are written
+
+## 1.4.0
+
+* Fixed bugs related to selector positioning and scrolling
+* Minor performance optimizations
+* Added focusTimePosition property to set initial focus time
+* Added focusTimeAlignment property to control focus alignment (default Alignment.center)
+* Update examples

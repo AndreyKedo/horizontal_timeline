@@ -1,22 +1,24 @@
+library;
+
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show ValueListenable, setEquals;
 import 'package:flutter/material.dart';
-import 'package:horizontal_timeline/animated_render_object.dart';
+import 'package:horizontal_timeline/src/animated_render_object.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:horizontal_timeline/render_utils.dart';
-import 'package:horizontal_timeline/styles/hatch_style.dart';
-import 'package:horizontal_timeline/styles/selector_decoration.dart';
-import 'package:horizontal_timeline/time_extension.dart';
-import 'package:horizontal_timeline/time_range.dart';
+import 'package:horizontal_timeline/src/render_utils.dart';
+import 'package:horizontal_timeline/src/styles/hatch_style.dart';
+import 'package:horizontal_timeline/src/styles/selector_decoration.dart';
+import 'package:horizontal_timeline/src/time_extension.dart';
+import 'package:horizontal_timeline/src/time_range.dart';
 
-export 'package:horizontal_timeline/styles/selector_decoration.dart';
-export 'package:horizontal_timeline/styles/hatch_style.dart';
-export 'package:horizontal_timeline/time_extension.dart';
-export 'package:horizontal_timeline/time_range.dart';
+export 'package:horizontal_timeline/src/styles/selector_decoration.dart';
+export 'package:horizontal_timeline/src/styles/hatch_style.dart';
+export 'package:horizontal_timeline/src/time_extension.dart';
+export 'package:horizontal_timeline/src/time_range.dart';
 
 /// Постоянное смещение в минутах.
 const kMinutesShift = 15;
@@ -64,6 +66,22 @@ final kDefaultScrollAnimationStyle = AnimationStyle(curve: Curves.linear, durati
 
 /// Тип унарного обратного вызова, который принимает аргумент типа [TimeRange].
 typedef OnChangeSelectorRange = void Function(TimeRange value);
+
+@immutable
+class FocusPosition {
+  const FocusPosition({required this.time, required this.alignment});
+
+  final TimeOfDay time;
+  final Alignment alignment;
+
+  @override
+  int get hashCode => Object.hash(runtimeType, time, alignment);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FocusPosition && runtimeType == other.runtimeType && time == other.time && alignment == other.alignment;
+}
 
 /// {@template timeline}
 /// Виджет, который отображает временную шкалу длиной 24 часа с возможностью выбирать определённый временной диапазон.
@@ -138,6 +156,7 @@ class Timeline extends LeafRenderObjectWidget {
   const Timeline({
     super.key,
     this.initialSelectorRange,
+    this.focusTimePosition,
     this.onChange,
     this.availableRanges = const {},
     this.timeScaleColor = const Color(0xFFC2C5CC),
@@ -152,10 +171,21 @@ class Timeline extends LeafRenderObjectWidget {
     this.scrollAnimationStyle,
     this.animationStyle,
     this.space = kTopPaddingOfTimeLabel,
+    this.focusTimeAlignment = Alignment.center,
   });
 
   /// Начальное значение диапазона времени. Если равно null элемент выбора времени не отображается.
   final TimeRange? initialSelectorRange;
+
+  /// Временная позиция для фокусировки при инициализации виджета.
+  /// Если указано, шкала времени автоматически прокручивается к заданному времени.
+  /// Если равно null, фокусировка не применяется.
+  /// Имеет приоритет перед [initialSelectorRange].
+  final TimeOfDay? focusTimePosition;
+
+  /// Выравнивание фокусируемой временной позиции относительно видимой области.
+  /// По умолчанию [Alignment.center].
+  final Alignment focusTimeAlignment;
 
   /// Обратный вызов который вызывается каждый раз, когда изменяется выбранный диапазон времени.
   final OnChangeSelectorRange? onChange;
@@ -202,10 +232,6 @@ class Timeline extends LeafRenderObjectWidget {
   void _debug() {
     assert(debugTimeOfDayCheck(minSelectorRange));
 
-    if (initialSelectorRange != null) {
-      assert(initialSelectorRange!.minutes >= minSelectorRange.totalMinutes);
-    }
-
     assert(minSelectorRange.totalMinutes >= kMinutesShift, 'Некорректное время  0 < TimeOfDay.totalMinutes >= 15');
     assert(gap >= kMinGap, 'Некорректное значение gap. kMinGap <= gap');
   }
@@ -218,7 +244,7 @@ class Timeline extends LeafRenderObjectWidget {
 
     final scrollableState = Scrollable.of(context, axis: Axis.horizontal);
 
-    return _TimelineRenderObject(
+    return TimelineRenderObject(
       gap: gap,
       space: space,
       timeScaleColor: timeScaleColor,
@@ -237,12 +263,12 @@ class Timeline extends LeafRenderObjectWidget {
       scrollAnimationStyle: scrollAnimationStyle ?? kDefaultScrollAnimationStyle,
       tickerNotifier: TickerMode.getNotifier(context),
       animationStyle: animationStyle ?? kDefaultSelectorAnimationStyle,
+      focusPosition: _getFocusPosition(),
     );
   }
 
   @override
-  // ignore: library_private_types_in_public_api
-  void updateRenderObject(BuildContext context, _TimelineRenderObject renderObject) {
+  void updateRenderObject(BuildContext context, TimelineRenderObject renderObject) {
     _debug();
 
     final materialLocalization = MaterialLocalizations.of(context);
@@ -266,12 +292,20 @@ class Timeline extends LeafRenderObjectWidget {
       ..scrollAnimationStyle = scrollAnimationStyle ?? kDefaultScrollAnimationStyle
       ..animationStyle = animationStyle ?? kDefaultSelectorAnimationStyle
       ..tickerModeNotifier = TickerMode.getNotifier(context)
-      ..onChangeSelectorRange = onChange;
+      ..onChangeSelectorRange = onChange
+      ..focusPosition = _getFocusPosition();
+  }
+
+  FocusPosition? _getFocusPosition() {
+    if (focusTimePosition != null) {
+      return FocusPosition(time: focusTimePosition!, alignment: focusTimeAlignment);
+    }
+    return null;
   }
 }
 
-class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObject {
-  _TimelineRenderObject({
+class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObject {
+  TimelineRenderObject({
     required double gap,
     required double space,
     required Color timeScaleColor,
@@ -284,6 +318,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     required HatchStyle hatchStyle,
     required TimeOfDay minSelectorRange,
     required TimeRange? initialSelectorValue,
+    required FocusPosition? focusPosition,
     required AnimationStyle animationStyle,
     required AnimationStyle scrollAnimationStyle,
     required ValueListenable<bool> tickerNotifier,
@@ -306,10 +341,19 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
        _minSelectorRange = minSelectorRange,
        _scrollAnimationStyle = scrollAnimationStyle,
        _animationStyle = animationStyle,
-       _onChangeSelectorRange = onChangeSelectorRange {
+       _onChangeSelectorRange = onChangeSelectorRange,
+       _focusPosition = focusPosition {
     tickerModeNotifier = tickerNotifier;
 
     _initializeAnimation(animationStyle);
+
+    assert(() {
+      _scrollable.position.addListener(() {
+        if (!debugPaintSizeEnabled) return;
+        markNeedsPaint();
+      });
+      return true;
+    }());
   }
 
   final _timelineLayerHandler = LayerHandle<PictureLayer>();
@@ -336,7 +380,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   Set<Rect> _availableZones = const <Rect>{};
 
   // Размер шкалы(без временных меток)
-  Size timeScaleSize = Size.zero;
+  Size _timeScaleSize = Size.zero;
 
   // Флаги жестов
   bool _isDraggingRightCorner = false;
@@ -347,10 +391,10 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   Offset _startTapPosition = Offset.zero;
 
   /// Ограничения временной шкалы
-  BoxConstraints get timeScaleConstraints => BoxConstraints.loose(timeScaleSize);
+  BoxConstraints get timeScaleConstraints => BoxConstraints.loose(_timeScaleSize);
 
   /// Минимальная ширина выделителя времени
-  double get minSelectorWidth => minuteToOffset(_minSelectorRange.totalMinutes / kMinutesShift);
+  double get minSelectorWidth => minuteToDx(_minSelectorRange.totalMinutes);
 
   /// Видимая часть. Меняется в зависимости от позиции прокрутки
   /// Имеет отступы [kHorizontalFocusPadding] по горизонтали
@@ -394,7 +438,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     if (setEquals(value, _availableRanges)) return;
 
     _availableRanges = value;
-    _availableZones = _rangesToGeometry(value, timeScaleSize);
+    _availableZones = _rangesToGeometry(value, _timeScaleSize);
     _redrawAvailableRanges();
     markNeedsPaint();
   }
@@ -428,9 +472,9 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     _initialSelectorRange = value;
 
     if (value != null) {
-      final newRect = _getDefaultSelectorRect(timeScaleSize, value);
+      final newRect = _selectorRectFromRange(_timeScaleSize, value);
       _animatedUpdateSelectorRect(newRect, () {
-        _focusOnSelector(newRect, true);
+        focusOnSelector(newRect, true);
       });
       return;
     }
@@ -444,7 +488,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     if (value == _minSelectorRange || !isEnabledSelector) return;
 
     _minSelectorRange = value;
-    _selectorRect = _getDefaultSelectorRect(timeScaleSize, initialSelectorRange!);
+    _selectorRect = _selectorRectFromRange(_timeScaleSize, initialSelectorRange!);
     markNeedsPaint();
   }
 
@@ -455,6 +499,18 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
     _selectorDecoration = value;
     markNeedsPaint();
+  }
+
+  FocusPosition? _focusPosition;
+  FocusPosition? get focusPosition => _focusPosition;
+  set focusPosition(FocusPosition? value) {
+    if (value == _focusPosition) return;
+
+    _focusPosition = value;
+
+    if (value != null) {
+      focus(value);
+    }
   }
 
   //------------------------------------------
@@ -571,16 +627,21 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
     final size = constraints.constrain(Size.fromWidth(_gap * kSteps));
 
-    timeScaleSize = layoutTimeline(BoxConstraints.tight(size));
+    _timeScaleSize = layoutTimeline(BoxConstraints.tight(size));
 
-    _availableZones = _rangesToGeometry(availableRanges, timeScaleSize);
+    _availableZones = _rangesToGeometry(availableRanges, _timeScaleSize);
 
     if (initialSelectorRange != null) {
-      _selectorRect = _getDefaultSelectorRect(timeScaleSize, initialSelectorRange!);
+      _selectorRect = _selectorRectFromRange(_timeScaleSize, initialSelectorRange!);
 
       /// Фокусирует на области выбора доступного времени
       /// Работает только при наличие предка типа *Viewport
-      _focusOnSelector(_selectorRect);
+      focusOnSelector(_selectorRect);
+    }
+
+    if (focusPosition case FocusPosition position) {
+      //calculate offset
+      focus(position);
     }
 
     return size;
@@ -607,40 +668,41 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
   @override
   void debugPaint(PaintingContext context, Offset offset) {
-    if (debugPaintSizeEnabled) {
-      final canvas = context.canvas;
+    assert(() {
+      if (debugPaintSizeEnabled) {
+        final canvas = context.canvas;
 
-      final scrollOffset = Offset(_scrollable.position.pixels + 2, timeScaleConstraints.maxHeight / 2);
+        // Viewport visualization
+        canvas
+          ..drawRect(
+            viewportRect,
+            Paint()
+              ..color = Colors.red.withAlpha(50)
+              ..strokeWidth = 12
+              ..style = PaintingStyle.fill,
+          )
+          ..drawLine(
+            Offset(viewportRect.center.dx, .0),
+            Offset(viewportRect.center.dx, timeScaleConstraints.maxHeight),
+            Paint()
+              ..color = Colors.red
+              ..strokeWidth = 4
+              ..style = PaintingStyle.fill,
+          );
 
-      /// Draw scroll offset
-      canvas.drawPoints(
-        PointMode.points,
-        [scrollOffset],
-        Paint()
-          ..color = Colors.red
-          ..strokeWidth = 12
-          ..style = PaintingStyle.fill,
-      );
+        final anchorPaint =
+            Paint()
+              ..color = Colors.teal.withAlpha(80)
+              ..style = PaintingStyle.fill;
 
-      canvas.drawRect(
-        viewportRect,
-        Paint()
-          ..color = Colors.red.withAlpha(50)
-          ..strokeWidth = 12
-          ..style = PaintingStyle.fill,
-      );
+        // left drag anchor
+        canvas.drawRect(_dragAnchor(_leftEdgeCenter), anchorPaint);
 
-      final anchorPaint =
-          Paint()
-            ..color = Colors.teal.withAlpha(80)
-            ..style = PaintingStyle.fill;
-
-      // left drag anchor
-      canvas.drawRect(_dragAnchor(_leftEdgeCenter), anchorPaint);
-
-      // Right drag anchor
-      canvas.drawRect(_dragAnchor(_rightEdgeCenter), anchorPaint);
-    }
+        // Right drag anchor
+        canvas.drawRect(_dragAnchor(_rightEdgeCenter), anchorPaint);
+      }
+      return true;
+    }());
 
     super.debugPaint(context, offset);
   }
@@ -734,39 +796,59 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     _parentAnimation = CurvedAnimation(parent: _animationController, curve: animationStyle.curve ?? Curves.easeInOut);
   }
 
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
   Rect _dragAnchor(Offset center) =>
       Rect.fromCenter(center: center, width: kDragArea, height: timeScaleConstraints.maxHeight);
 
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
   bool _isNearLeftEdge(Offset position) => _dragAnchor(_leftEdgeCenter).contains(position);
 
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
   bool _isNearRightEdge(Offset position) => _dragAnchor(_rightEdgeCenter).contains(position);
 
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
   bool _isOutsideTap(Offset position) =>
-      Rect.fromLTWH(0, 0, size.width, timeScaleSize.height).contains(position) && !_selectorRect.contains(position);
+      Rect.fromLTWH(0, 0, size.width, _timeScaleSize.height).contains(position) && !_selectorRect.contains(position);
 
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
   double _snapToSegment(double value) {
     return (value / gap).round() * gap;
   }
 
-  Rect _getDefaultSelectorRect(Size size, TimeRange range) {
-    final start = minuteToOffset(range.beginMinute) / kMinutesShift;
-    final end = minuteToOffset(range.endMinute) / kMinutesShift;
+  Rect _selectorRectFromRange(Size size, TimeRange range) {
+    final start = minuteToDx(range.beginMinute);
+
+    final end = minuteToDx(switch (range.endMinute) {
+      0 => kMinutesPerDay,
+      final endMinute => endMinute,
+    });
 
     return Rect.fromLTWH(start, .0, end - start, size.height);
   }
 
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
   TimeRange _geometryToRange(Rect rect) {
     final begin = _dxToTime(rect.left);
     final end = _dxToTime(rect.right);
+    final range = TimeRange(begin: begin, end: end);
 
-    return TimeRange(begin: begin, end: end);
+    return range;
   }
 
   Set<Rect> _rangesToGeometry(Set<TimeRange> ranges, Size size) {
     final geometrySet = <Rect>{};
-    for (var range in availableRanges) {
-      final startPosition = minuteToOffset(range.beginMinute / kMinutesShift);
-      final endPosition = minuteToOffset(range.endMinute / kMinutesShift);
+    for (var range in ranges) {
+      final startPosition = minuteToDx(range.beginMinute);
+      final endPosition = minuteToDx(switch (range.endMinute) {
+        .0 => kMinutesPerDay,
+        final minute => minute,
+      });
 
       geometrySet.add(Rect.fromLTRB(startPosition, .0, endPosition, size.height));
     }
@@ -774,30 +856,67 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     return geometrySet;
   }
 
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
   TimeOfDay _dxToTime(double dx) {
     final shift = dx / gap;
     final totalMinutes = shift * kMinutesShift;
+
     return timeOfDayFromMinute(totalMinutes);
   }
 
-  void _focusOnSelector(Rect selector, [bool animated = false]) {
+  void focus(FocusPosition position, [bool animated = false]) {
+    if (position.time.totalMinutes <= 0) return;
+
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      parent?.showOnScreen(
-        descendant: this,
-        rect: EdgeInsets.only(
-          right: viewportRect.right - selector.width - kHorizontalFocusPadding,
-          left: kHorizontalFocusPadding,
-        ).inflateRect(selector),
+      final alignment = position.alignment;
+      final viewportDimension = _scrollable.position.viewportDimension;
+      final timeDx = minuteToDx(position.time.totalMinutes);
+
+      // Вычисляем смещение внутри viewport для выравнивания
+      var desiredOffsetInViewport = alignment.alongSize(Size(viewportDimension, 0)).dx;
+
+      desiredOffsetInViewport += kHorizontalFocusPadding * (alignment.x * -1);
+
+      // Целевая позиция скролла
+      var targetScrollOffset = timeDx - desiredOffsetInViewport;
+
+      // Учитываем границы прокрутки
+      targetScrollOffset = targetScrollOffset.clamp(0.0, _scrollable.position.maxScrollExtent);
+
+      _scrollable.position.moveTo(
+        targetScrollOffset,
         duration: animated ? scrollAnimationStyle.duration ?? Duration.zero : Duration.zero,
         curve: animated ? scrollAnimationStyle.curve ?? Curves.ease : Curves.ease,
       );
     });
   }
 
-  bool isHour(int remainder) => remainder == 0;
+  void focusOnSelector(Rect selector, [bool animated = false]) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      const padding = EdgeInsets.symmetric(horizontal: kHorizontalFocusPadding);
 
-  double minuteToOffset(num minute) => minute * gap;
+      final rect = padding.inflateRect(selector);
+      _scrollable.position.moveTo(
+        rect.left,
+        duration: animated ? scrollAnimationStyle.duration ?? Duration.zero : Duration.zero,
+        curve: animated ? scrollAnimationStyle.curve ?? Curves.ease : Curves.ease,
+      );
+      // parent?.showOnScreen(
+      //   descendant: this,
+      //   rect: rect,
+      // duration: animated ? scrollAnimationStyle.duration ?? Duration.zero : Duration.zero,
+      // curve: animated ? scrollAnimationStyle.curve ?? Curves.ease : Curves.ease,
+      // );
+    });
+  }
 
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
+  double minuteToDx(num minute) => (minute * gap) / kMinutesShift;
+
+  @pragma('vm:prefer-inline')
+  @pragma('dart2js:tryInline')
   bool _collisionDetectorPredicate(Rect rect) {
     return _selectorRect.right <= rect.right && _selectorRect.left >= rect.left;
   }
@@ -960,7 +1079,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
   }
 
   void _drawTimescale(Canvas canvas) {
-    final height = timeScaleSize.height;
+    final height = _timeScaleSize.height;
 
     final timeScalePaint =
         Paint()
@@ -992,14 +1111,16 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       final minuteShift = (normalizedStep * kMinutesShift);
       final remainder = minuteShift.remainder(TimeOfDay.minutesPerHour);
 
+      bool isHour(int remainder) => remainder == 0;
+
       if (isHour(remainder) && normalizedStep < kSteps) {
-        _drawTimeLabel(canvas: canvas, offset: Offset(shift, timeScaleSize.height), minuteShift: minuteShift);
+        _drawTimeLabel(canvas: canvas, offset: Offset(shift, _timeScaleSize.height), minuteShift: minuteShift);
       }
     }
   }
 
   void _drawHatch(Canvas canvas) {
-    final height = timeScaleSize.height;
+    final height = _timeScaleSize.height;
 
     final backgroundPaint =
         Paint()
@@ -1017,7 +1138,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
     final cosAngle = math.cos(hatchAngle);
     final sinAngle = math.sin(hatchAngle);
 
-    final fullWidth = timeScaleSize.width + height;
+    final fullWidth = _timeScaleSize.width + height;
     for (double i = -height; i < fullWidth; i += hatchStyle.space) {
       final x = i;
       final y = 0.0;
@@ -1035,7 +1156,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
 
     final clip = Path.combine(
       PathOperation.difference,
-      Path()..addRect(Offset.zero & timeScaleSize),
+      Path()..addRect(Offset.zero & _timeScaleSize),
       availableRangesPath,
     );
 
@@ -1043,7 +1164,7 @@ class _TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObj
       ..save()
       ..clipPath(clip);
     canvas
-      ..drawRect(Offset.zero & timeScaleSize, backgroundPaint)
+      ..drawRect(Offset.zero & _timeScaleSize, backgroundPaint)
       ..drawPath(path, hatchPaint);
     canvas.restore();
   }

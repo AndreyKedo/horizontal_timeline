@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:horizontal_timeline/time_range.dart';
+import 'package:horizontal_timeline/src/time_range.dart';
 
 void main() {
   test('Day', () {

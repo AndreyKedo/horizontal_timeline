@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:horizontal_timeline/timeline.dart';
+import 'package:horizontal_timeline/horizontal_timeline.dart';
 
 void main() {
   runApp(const MainApp());
@@ -36,6 +36,8 @@ class _TimelineScrollState extends State<TimelineScroll> {
 
   final valueNotifier = ValueNotifier<TimeRange?>(null);
 
+  final positionSetter = ValueNotifier<TimeOfDay?>(null);
+
   TimeRange? initial = TimeRange(begin: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 10, minute: 0));
   double gap = 24;
   TimeOfDay minSelectorRange = TimeOfDay(hour: 0, minute: 30);
@@ -44,12 +46,14 @@ class _TimelineScrollState extends State<TimelineScroll> {
 
   @override
   void dispose() {
+    positionSetter.dispose();
     valueNotifier.dispose();
     super.dispose();
   }
 
   String _rangeToString(TimeRange value) {
     final materialLocalization = MaterialLocalizations.of(context);
+
     final strBuilder =
         StringBuffer()
           ..write(materialLocalization.formatTimeOfDay(value.begin))
@@ -125,9 +129,10 @@ class _TimelineScrollState extends State<TimelineScroll> {
                                               );
                                               if (end == null) return;
 
-                                              if (end.hour > 0 && end < begin) return;
+                                              //if (end < begin) return;
                                               setState(() {
                                                 initial = TimeRange(begin: begin, end: end);
+                                                //valueNotifier.value = initial;
                                               });
                                             },
                                             child: Text('Set selector position'),
@@ -136,6 +141,7 @@ class _TimelineScrollState extends State<TimelineScroll> {
                                             onPressed: () {
                                               setState(() {
                                                 initial = null;
+                                                valueNotifier.value = null;
                                               });
                                             },
                                             child: Text('Reset'),
@@ -170,6 +176,18 @@ class _TimelineScrollState extends State<TimelineScroll> {
                                               stroke = value;
                                             });
                                           },
+                                        ),
+                                      ),
+                                      Flexible(
+                                        child: FilledButton(
+                                          onPressed: () async {
+                                            final value = await showTimePicker(
+                                              context: context,
+                                              initialTime: minSelectorRange,
+                                            );
+                                            positionSetter.value = value;
+                                          },
+                                          child: Text('Set position'),
                                         ),
                                       ),
                                     ],
@@ -264,6 +282,7 @@ class _TimelineScrollState extends State<TimelineScroll> {
                           valueListenable: valueNotifier,
                           builder: (context, value, child) {
                             var effectiveValue = value ?? initial ?? TimeRange();
+
                             return Offstage(
                               offstage: value == null && initial == null,
                               child: FittedBox(
@@ -290,26 +309,32 @@ class _TimelineScrollState extends State<TimelineScroll> {
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             hitTestBehavior: HitTestBehavior.deferToChild,
-                            child: Timeline(
-                              gap: gap,
-                              initialSelectorRange: initial,
-                              minSelectorRange: minSelectorRange,
-                              availableRanges: ranges.toSet(),
-                              strokeWidth: stroke,
-                              selectorDecoration: SelectorDecoration(
-                                color: Colors.blue.withAlpha(35),
-                                border: BoxBorder.symmetric(vertical: BorderSide(color: Colors.black, width: 8)),
-                                borderRadius: BorderRadius.horizontal(
-                                  right: Radius.circular(3),
-                                  left: Radius.circular(3),
-                                ),
-                                errorBorder: BoxBorder.symmetric(
-                                  vertical: BorderSide(color: Colors.redAccent, width: 8),
-                                ),
-                                dragHandleColor: Colors.white,
-                              ),
-                              onChange: (value) {
-                                valueNotifier.value = value;
+                            child: ValueListenableBuilder(
+                              valueListenable: positionSetter,
+                              builder: (context, value, child) {
+                                return Timeline(
+                                  gap: gap,
+                                  initialSelectorRange: initial,
+                                  focusTimePosition: value,
+                                  minSelectorRange: minSelectorRange,
+                                  availableRanges: ranges.toSet(),
+                                  strokeWidth: stroke,
+                                  selectorDecoration: SelectorDecoration(
+                                    color: Colors.blue.withAlpha(35),
+                                    border: BoxBorder.symmetric(vertical: BorderSide(color: Colors.black, width: 8)),
+                                    borderRadius: BorderRadius.horizontal(
+                                      right: Radius.circular(3),
+                                      left: Radius.circular(3),
+                                    ),
+                                    errorBorder: BoxBorder.symmetric(
+                                      vertical: BorderSide(color: Colors.redAccent, width: 8),
+                                    ),
+                                    dragHandleColor: Colors.white,
+                                  ),
+                                  onChange: (value) {
+                                    valueNotifier.value = value;
+                                  },
+                                );
                               },
                             ),
                           ),
