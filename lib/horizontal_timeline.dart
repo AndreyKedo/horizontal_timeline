@@ -20,30 +20,6 @@ export 'package:horizontal_timeline/src/styles/hatch_style.dart';
 export 'package:horizontal_timeline/src/time_extension.dart';
 export 'package:horizontal_timeline/src/time_range.dart';
 
-/// Направление перетаскивания селектора
-enum DragDirection {
-  /// Перетаскивание влево
-  left,
-
-  /// Перетаскивание вправо
-  right;
-
-  const DragDirection();
-
-  // if (newRect.left > _previousSelectorPosition.dx) {
-  //   _dragDirection = DragDirection.right;
-  // } else if (newRect.left < _previousSelectorPosition.dx) {
-  //   _dragDirection = DragDirection.left;
-  // }
-  factory DragDirection.fromPoints(double x1, double x2) {
-    if (x1 < x2) {
-      return DragDirection.left;
-    } else {
-      return DragDirection.right;
-    }
-  }
-}
-
 /// Постоянное смещение в минутах.
 const kMinutesShift = 15;
 
@@ -90,6 +66,25 @@ final kDefaultScrollAnimationStyle = AnimationStyle(curve: Curves.linear, durati
 
 /// Тип унарного обратного вызова, который принимает аргумент типа [TimeRange].
 typedef OnChangeSelectorRange = void Function(TimeRange value);
+
+/// Направление перетаскивания селектора
+enum DragDirection {
+  /// Перетаскивание влево
+  left,
+
+  /// Перетаскивание вправо
+  right;
+
+  const DragDirection();
+
+  factory DragDirection.fromPoints(double x1, double x2) {
+    if (x1 < x2) {
+      return DragDirection.left;
+    } else {
+      return DragDirection.right;
+    }
+  }
+}
 
 @immutable
 class FocusPosition {
@@ -349,24 +344,24 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
     required OnChangeSelectorRange? onChangeSelectorRange,
     required SelectorDecoration selectorDecoration,
     required ScrollableState scrollable,
-  }) : _scrollable = scrollable,
-       _gap = gap,
-       _space = space,
-       _initialSelectorRange = initialSelectorValue,
-       _timeScaleColor = timeScaleColor,
-       _strokeWidth = strokeWidth,
-       _localization = localization,
-       _timeLabelStyle = timeLabelStyle,
-       _enabledLabelStyle = enabledLabelStyle,
-       _disabledLabelStyle = disabledLabelStyle,
-       _availableRanges = availableRanges,
-       _hatchStyle = hatchStyle,
-       _selectorDecoration = selectorDecoration,
-       _minSelectorRange = minSelectorRange,
-       _scrollAnimationStyle = scrollAnimationStyle,
-       _animationStyle = animationStyle,
-       _onChangeSelectorRange = onChangeSelectorRange,
-       _focusPosition = focusPosition {
+  })  : _scrollable = scrollable,
+        _gap = gap,
+        _space = space,
+        _initialSelectorRange = initialSelectorValue,
+        _timeScaleColor = timeScaleColor,
+        _strokeWidth = strokeWidth,
+        _localization = localization,
+        _timeLabelStyle = timeLabelStyle,
+        _enabledLabelStyle = enabledLabelStyle,
+        _disabledLabelStyle = disabledLabelStyle,
+        _availableRanges = availableRanges,
+        _hatchStyle = hatchStyle,
+        _selectorDecoration = selectorDecoration,
+        _minSelectorRange = minSelectorRange,
+        _scrollAnimationStyle = scrollAnimationStyle,
+        _animationStyle = animationStyle,
+        _onChangeSelectorRange = onChangeSelectorRange,
+        _focusPosition = focusPosition {
     tickerModeNotifier = tickerNotifier;
 
     _initializeAnimation(animationStyle);
@@ -418,7 +413,8 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   bool _isDraggingSelector = false;
   bool _isTap = false;
   bool _isMove = false;
-  // Нужен для обнаружения прокрутки
+
+  // Начальная позиция при нажатии селектора
   Offset _startTapPosition = Offset.zero;
   // Начальная позиция селектора при перетаскивании
   Offset _startSelectorPosition = Offset.zero;
@@ -723,10 +719,9 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
               ..style = PaintingStyle.fill,
           );
 
-        final anchorPaint =
-            Paint()
-              ..color = Colors.teal.withAlpha(80)
-              ..style = PaintingStyle.fill;
+        final anchorPaint = Paint()
+          ..color = Colors.teal.withAlpha(80)
+          ..style = PaintingStyle.fill;
 
         // left drag anchor
         canvas.drawRect(_dragAnchor(_leftEdgeCenter), anchorPaint);
@@ -1173,11 +1168,10 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   void _drawTimescale(Canvas canvas) {
     final height = _timeScaleSize.height;
 
-    final timeScalePaint =
-        Paint()
-          ..color = timeScaleColor
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.fill;
+    final timeScalePaint = Paint()
+      ..color = timeScaleColor
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.fill;
     canvas.drawLine(Offset(0, height), Offset(size.width, height), timeScalePaint);
     for (int step = 0; step < kSteps; step++) {
       final normalizedStep = step + 1;
@@ -1214,17 +1208,15 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   void _drawHatch(Canvas canvas) {
     final height = _timeScaleSize.height;
 
-    final backgroundPaint =
-        Paint()
-          ..color = hatchStyle.backgroundColor
-          ..style = PaintingStyle.fill;
+    final backgroundPaint = Paint()
+      ..color = hatchStyle.backgroundColor
+      ..style = PaintingStyle.fill;
 
     const hatchAngle = 45 * math.pi / -180;
-    final hatchPaint =
-        Paint()
-          ..color = hatchStyle.strokeColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = hatchStyle.strokeWidth;
+    final hatchPaint = Paint()
+      ..color = hatchStyle.strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = hatchStyle.strokeWidth;
 
     final path = Path();
     final cosAngle = math.cos(hatchAngle);

@@ -1,4 +1,8 @@
-Timeline widget.
+## Horizontal timeline widget.
+
+[![Pub](https://img.shields.io/pub/v/horizontal_timeline.svg)](https://pub.dev/packages/horizontal_timeline)
+
+
 Draws a 24-hour scrollable time scale with 15-minute increments, allowing you to select a time range.
 
 ![preview](./doc/preview.png)
@@ -8,6 +12,7 @@ Draws a 24-hour scrollable time scale with 15-minute increments, allowing you to
 * Limiting the available time range.
 * Full customization.
 * Animated
+* Interactive
 
 ## Getting started
 
@@ -28,10 +33,8 @@ For example:
 > 🚧 **The scrollable parent element must have `hitTestBehavior` set to `HitTestBehavior.deferToChild`. Otherwise, events will not reach the selector.**
 
 ```dart
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:timeline_widget/timeline.dart';
+import 'package:horizontal_timeline/horizontal_timeline.dart';
 
 void main() {
   runApp(const MainApp());
@@ -43,11 +46,8 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      locale: Locale('ru', 'RU'),
-      supportedLocales: [Locale('ru', 'RU')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      home: SizedBox(
-              height: 95,
+      home: ConstrainedBox(
+              constraints: BoxConstraints.loose(Size.fromHeight(75)),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 hitTestBehavior: HitTestBehavior.deferToChild,
