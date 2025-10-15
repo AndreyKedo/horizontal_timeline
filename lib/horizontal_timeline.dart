@@ -20,6 +20,30 @@ export 'package:horizontal_timeline/src/styles/hatch_style.dart';
 export 'package:horizontal_timeline/src/time_extension.dart';
 export 'package:horizontal_timeline/src/time_range.dart';
 
+/// Направление перетаскивания селектора
+enum DragDirection {
+  /// Перетаскивание влево
+  left,
+
+  /// Перетаскивание вправо
+  right;
+
+  const DragDirection();
+
+  // if (newRect.left > _previousSelectorPosition.dx) {
+  //   _dragDirection = DragDirection.right;
+  // } else if (newRect.left < _previousSelectorPosition.dx) {
+  //   _dragDirection = DragDirection.left;
+  // }
+  factory DragDirection.fromPoints(double x1, double x2) {
+    if (x1 < x2) {
+      return DragDirection.left;
+    } else {
+      return DragDirection.right;
+    }
+  }
+}
+
 /// Постоянное смещение в минутах.
 const kMinutesShift = 15;
 
@@ -376,6 +400,12 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   // Выделения диапазона времени
   Rect _selectorRect = Rect.zero;
 
+  /// Направление перетаскивания селектора
+  DragDirection? _dragDirection;
+
+  /// Предыдущая позиция селектора для определения направления перетаскивания
+  Offset _previousSelectorPosition = Offset.zero;
+
   // Доступная для выбора зона
   Set<Rect> _availableZones = const <Rect>{};
 
@@ -385,10 +415,13 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   // Флаги жестов
   bool _isDraggingRightCorner = false;
   bool _isDraggingLeftCorner = false;
+  bool _isDraggingSelector = false;
   bool _isTap = false;
   bool _isMove = false;
   // Нужен для обнаружения прокрутки
   Offset _startTapPosition = Offset.zero;
+  // Начальная позиция селектора при перетаскивании
+  Offset _startSelectorPosition = Offset.zero;
 
   /// Ограничения временной шкалы
   BoxConstraints get timeScaleConstraints => BoxConstraints.loose(_timeScaleSize);
@@ -720,6 +753,13 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
       return false;
     }
 
+    // Проверяем, находится ли позиция внутри селектора (но не на краях)
+    final isOutsideCorner = !_isNearLeftEdge(position) && !_isNearRightEdge(position);
+    if (_selectorRect.contains(position) && isOutsideCorner) {
+      result.add(BoxHitTestEntry(this, position));
+      return false;
+    }
+
     return super.hitTest(result, position: position);
   }
 
@@ -735,23 +775,38 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
       _isTap = false;
       _isMove = false;
       _startTapPosition = event.position;
+      _startSelectorPosition = _selectorRect.topLeft;
+      _previousSelectorPosition = _selectorRect.topLeft;
 
       _isDraggingLeftCorner = _isNearLeftEdge(localPosition);
       _isDraggingRightCorner = _isNearRightEdge(localPosition);
+      _isDraggingSelector = _selectorRect.contains(localPosition) && !_isDraggingLeftCorner && !_isDraggingRightCorner;
 
       // Фиксируем возможный тап
-      if (_isOutsideTap(event.localPosition) && !(_isDraggingLeftCorner || _isDraggingRightCorner)) {
+      if (_isOutsideTap(event.localPosition) &&
+          !(_isDraggingLeftCorner || _isDraggingRightCorner || _isDraggingSelector)) {
         _isTap = true;
       }
     }
     // Изменение размера прямоугольника
-    if (event is PointerMoveEvent && (_isDraggingLeftCorner || _isDraggingRightCorner)) {
+    else if (event is PointerMoveEvent && (_isDraggingLeftCorner || _isDraggingRightCorner)) {
       _isTap = false;
       _isMove = true;
       final localOffset = globalToLocal(event.position);
 
       _updateSelectorSizeByOffset(localOffset, event.delta);
-    } else if (event is PointerMoveEvent && !(_isDraggingLeftCorner || _isDraggingRightCorner)) {
+    }
+    // Перемещение всего селектора
+    else if (event is PointerMoveEvent && _isDraggingSelector) {
+      _isTap = false;
+      _isMove = true;
+      final delta = event.position - _startTapPosition;
+
+      // Проверяем, превысило ли смещение порог
+      if (delta.distance > kScrollThreshold) {
+        _updateSelectorPositionByDrag(delta);
+      }
+    } else if (event is PointerMoveEvent && !(_isDraggingLeftCorner || _isDraggingRightCorner || _isDraggingSelector)) {
       final delta = event.position - _startTapPosition;
       // Проверяем, превысило ли смещение порог
       if (delta.distance > kScrollThreshold) {
@@ -1068,6 +1123,43 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
 
       _updateSelectorRect(newRect);
     }
+  }
+
+  /// Обновляет позицию селектора при перетаскивании
+  void _updateSelectorPositionByDrag(Offset delta) {
+    // Вычисляем новую позицию селектора с учетом смещения
+    final newLeft = _startSelectorPosition.dx + delta.dx;
+    final newRight = newLeft + _selectorRect.width;
+
+    // Проверяем границы и корректируем позицию при необходимости
+    double correctedLeft = newLeft;
+    if (newLeft < 0) {
+      correctedLeft = 0;
+    } else if (newRight > size.width) {
+      correctedLeft = size.width - _selectorRect.width;
+    }
+
+    // Создаем новый прямоугольник с обновленной позицией
+    final newRect = Rect.fromLTWH(correctedLeft, _selectorRect.top, _selectorRect.width, _selectorRect.height);
+
+    // Определяем направление перетаскивания
+    _dragDirection = DragDirection.fromPoints(newRect.left, _previousSelectorPosition.dx);
+    // Обновляем предыдущую позицию
+    _previousSelectorPosition = newRect.topLeft;
+
+    // Проверяем, нужно ли прокручивать viewport
+    // Прокрутка влево, если левый край селектора приближается к левой границе viewport
+    if ((newRect.left - viewportRect.left) <= 20.0 && _dragDirection == DragDirection.left) {
+      _scrollable.position.moveTo(newRect.left);
+    }
+    // Прокрутка вправо, если правый край селектора приближается к правой границе viewport
+    if ((viewportRect.right - newRect.right) <= 20.0 && _dragDirection == DragDirection.right) {
+      final moveOffsetDx = newRect.right - viewportRect.right;
+      _scrollable.position.moveTo(viewportRect.left + moveOffsetDx);
+    }
+
+    // Обновляем позицию селектора
+    _updateSelectorRect(newRect);
   }
 
   // ------------------------ //
