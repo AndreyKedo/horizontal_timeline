@@ -137,10 +137,8 @@ class FocusPosition {
 /// Usage example
 ///
 /// ```dart
-/// import 'package:flutter/gestures.dart';
 /// import 'package:flutter/material.dart';
-/// import 'package:flutter_localizations/flutter_localizations.dart';
-/// import 'package:timeline_widget/timeline.dart';
+/// import 'package:horizontal_timeline/horizontal_timeline.dart';
 ///
 /// void main() {
 ///   runApp(const MainApp());
@@ -148,14 +146,12 @@ class FocusPosition {
 ///
 /// class MainApp extends StatelessWidget {
 ///   const MainApp({super.key});
+///
 ///   @override
 ///   Widget build(BuildContext context) {
 ///     return MaterialApp(
-///       locale: Locale('ru', 'RU'),
-///       supportedLocales: [Locale('ru', 'RU')],
-///       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-///       home: SizedBox(
-///               height: 95,
+///       home: ConstrainedBox(
+///               constraints: BoxConstraints.loose(Size.fromHeight(75)),
 ///               child: SingleChildScrollView(
 ///                 scrollDirection: Axis.horizontal,
 ///                 hitTestBehavior: HitTestBehavior.deferToChild,
