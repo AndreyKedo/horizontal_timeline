@@ -13,10 +13,10 @@ class SelectorDecoration with Diagnosticable {
     this.backgroundBlendMode,
     this.dragHandleColor,
   }) : assert(
-         backgroundBlendMode == null || color != null || gradient != null,
-         "backgroundBlendMode applies to SelectorDecoration's background color or "
-         'gradient, but no color or gradient was provided.',
-       );
+          backgroundBlendMode == null || color != null || gradient != null,
+          "backgroundBlendMode applies to SelectorDecoration's background color or "
+          'gradient, but no color or gradient was provided.',
+        );
 
   SelectorDecoration copyWith({
     Color? color,
@@ -41,15 +41,15 @@ class SelectorDecoration with Diagnosticable {
   }
 
   SelectorDecoration merge(SelectorDecoration other) => copyWith(
-    color: other.color,
-    dragHandleColor: other.dragHandleColor,
-    border: other.border,
-    errorBorder: other.errorBorder,
-    borderRadius: other.borderRadius,
-    boxShadow: other.boxShadow,
-    gradient: other.gradient,
-    backgroundBlendMode: other.backgroundBlendMode,
-  );
+        color: other.color,
+        dragHandleColor: other.dragHandleColor,
+        border: other.border,
+        errorBorder: other.errorBorder,
+        borderRadius: other.borderRadius,
+        boxShadow: other.boxShadow,
+        gradient: other.gradient,
+        backgroundBlendMode: other.backgroundBlendMode,
+      );
 
   /// Цвет для заливки фона прямоугольника.
   ///
@@ -153,15 +153,15 @@ class SelectorDecoration with Diagnosticable {
 
   @override
   int get hashCode => Object.hash(
-    color,
-    dragHandleColor,
-    border,
-    errorBorder,
-    borderRadius,
-    boxShadow == null ? null : Object.hashAll(boxShadow!),
-    gradient,
-    backgroundBlendMode,
-  );
+        color,
+        dragHandleColor,
+        border,
+        errorBorder,
+        borderRadius,
+        boxShadow == null ? null : Object.hashAll(boxShadow!),
+        gradient,
+        backgroundBlendMode,
+      );
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -271,8 +271,7 @@ class _SelectorDecorationPainter {
     }
 
     if (border case final Border border) {
-      final EdgeInsets insets =
-          EdgeInsets.fromLTRB(
+      final EdgeInsets insets = EdgeInsets.fromLTRB(
             _calculateAdjustedSide(border.left),
             _calculateAdjustedSide(border.top),
             _calculateAdjustedSide(border.right),
@@ -290,8 +289,7 @@ class _SelectorDecorationPainter {
       final BorderSide leftSide = border.start;
       final BorderSide rightSide = border.end;
 
-      final EdgeInsets insets =
-          EdgeInsets.fromLTRB(
+      final EdgeInsets insets = EdgeInsets.fromLTRB(
             _calculateAdjustedSide(leftSide),
             _calculateAdjustedSide(border.top),
             _calculateAdjustedSide(rightSide),
@@ -324,12 +322,11 @@ class _SelectorDecorationPainter {
     final dragHandleColor = decoration.dragHandleColor;
     if (dragHandleColor == null) return;
 
-    final linePaint =
-        Paint()
-          ..color = dragHandleColor
-          ..strokeWidth = 2
-          ..strokeCap = StrokeCap.round
-          ..style = PaintingStyle.fill;
+    final linePaint = Paint()
+      ..color = dragHandleColor
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.fill;
 
     final shift = border != null ? Offset(border.dimensions.horizontal / 4, 0) : Offset.zero;
 

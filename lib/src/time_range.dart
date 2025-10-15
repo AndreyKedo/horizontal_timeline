@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:horizontal_timeline/src/time_extension.dart';
 
-/// Количество минут в сутках.
+/// Number of minutes in a day.
 const kMinutesPerDay = TimeOfDay.hoursPerDay * TimeOfDay.minutesPerHour;
 
-/// Проверяет, что [TimeOfDay] имеет корректные значения часов и минут.
+/// Checks that [TimeOfDay] has correct hour and minute values.
 bool debugTimeOfDayCheck(TimeOfDay value) {
   assert(() {
     if (value.hour > TimeOfDay.hoursPerDay || value.hour < 0) {
       throw FlutterError(
-        'Некорректное значение времени. Время должно быть 0 >= TimeOfDay.hour <= TimeOfDay.hoursPerDay',
+        'Invalid time value. Time must be 0 >= TimeOfDay.hour <= TimeOfDay.hoursPerDay',
       );
     }
 
     if (value.minute > TimeOfDay.minutesPerHour || value.minute < 0) {
       throw FlutterError(
-        'Некорректное значение времени. Время должно быть 0 >= TimeOfDay.minute <= TimeOfDay.minutesPerHour',
+        'Invalid time value. Time must be 0 >= TimeOfDay.minute <= TimeOfDay.minutesPerHour',
       );
     }
     return true;
@@ -24,53 +24,53 @@ bool debugTimeOfDayCheck(TimeOfDay value) {
 }
 
 TimeOfDay timeOfDayFromMinute(num value) {
-  assert(value <= kMinutesPerDay && value >= 0, 'Время должно быть в диапазоне от 0 до 24');
+  assert(value <= kMinutesPerDay && value >= 0, 'Time must be in the range from 0 to 24');
   final hours = value ~/ TimeOfDay.minutesPerHour;
 
   final minutes = value.remainder(TimeOfDay.minutesPerHour).round();
   return TimeOfDay(hour: hours, minute: minutes);
 }
 
-/// Диапазон времени.
+/// Time range.
 @immutable
 class TimeRange {
-  /// Создает новый временной диапазон.
+  /// Creates a new time range.
   ///
-  /// [begin] - время начала диапазона.
-  /// [end] - время окончания диапазона.
+  /// [begin] - the start time of the range.
+  /// [end] - the end time of the range.
   TimeRange({this.begin = const TimeOfDay(hour: 0, minute: 0), this.end = const TimeOfDay(hour: 0, minute: 0)})
-    : assert(
-        end.hour == 0 || (end.hour > 0 && begin.isBefore(end)),
-        'Нижняя граница времени должна быть меньше верхней.',
-      ),
-      assert(debugTimeOfDayCheck(begin)),
-      assert(debugTimeOfDayCheck(end));
+      : assert(
+          end.hour == 0 || (end.hour > 0 && begin.isBefore(end)),
+          'The lower time boundary must be less than the upper one.',
+        ),
+        assert(debugTimeOfDayCheck(begin)),
+        assert(debugTimeOfDayCheck(end));
 
-  /// Начало диапазона.
+  /// Start of the range.
   final TimeOfDay begin;
 
-  /// Конец диапазона.
+  /// End of the range.
   final TimeOfDay end;
 
-  /// Возвращает начало диапазона в минутах.
+  /// Returns the start of the range in minutes.
   int get beginMinute => begin.totalMinutes;
 
-  /// Возвращает конец диапазона в минутах.
+  /// Returns the end of the range in minutes.
   int get endMinute => switch (end.totalMinutes) {
-    0 => kMinutesPerDay,
-    final value => value,
-  };
+        0 => kMinutesPerDay,
+        final value => value,
+      };
 
-  /// Возвращает продолжительность диапазона в минутах.
+  /// Returns the duration of the range in minutes.
   int get minutes => endMinute - beginMinute;
 
-  /// Статический экземпляр, представляющий весь день (00:00 - 24:00).
+  /// Static instance representing the entire day (00:00 - 24:00).
   static final day = TimeRange();
 
-  /// Возвращает продолжительность диапазона в виде [TimeOfDay].
+  /// Returns the duration of the range as [TimeOfDay].
   TimeOfDay get time => timeOfDayFromMinute(minutes);
 
-  /// Проверяет, пересекается ли заданное время [value] с этим диапазоном.
+  /// Checks if the given time [value] overlaps with this range.
   bool overlaps(TimeOfDay value, {bool include = true}) {
     final inMinute = value.totalMinutes;
 
@@ -81,10 +81,10 @@ class TimeRange {
     }
   }
 
-  /// Создает копию этого диапазона с возможностью изменить начало и/или конец.
+  /// Creates a copy of this range with the ability to change the start and/or end.
   ///
-  /// [begin] - новое время начала (если не указано, используется текущее).
-  /// [end] - новое время окончания (если не указано, используется текущее).
+  /// [begin] - new start time (if not specified, the current one is used).
+  /// [end] - new end time (if not specified, the current one is used).
   TimeRange copyWith({TimeOfDay? begin, TimeOfDay? end}) => TimeRange(begin: begin ?? this.begin, end: end ?? this.end);
 
   @override

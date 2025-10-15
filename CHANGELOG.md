@@ -34,3 +34,9 @@
 * Added focusTimePosition property to set initial focus time
 * Added focusTimeAlignment property to control focus alignment (default Alignment.center)
 * Update examples
+
+## 1.5.0
+
+* Update SDK constraints
+* Added the ability to move the selector horizontally
+* Update doc

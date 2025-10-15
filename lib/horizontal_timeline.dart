@@ -20,28 +20,28 @@ export 'package:horizontal_timeline/src/styles/hatch_style.dart';
 export 'package:horizontal_timeline/src/time_extension.dart';
 export 'package:horizontal_timeline/src/time_range.dart';
 
-/// Постоянное смещение в минутах.
+/// Constant time shift in minutes.
 const kMinutesShift = 15;
 
-/// Количество делений на шкале времени.
+/// Number of divisions on the time scale.
 const kSteps = kMinutesPerDay / kMinutesShift;
 
-/// Отступ между текстом и нижней границей шкалы времени.
+/// Padding between text and the bottom border of the time scale.
 const kTopPaddingOfTimeLabel = 6.0;
 
-/// Ширина области в пределах которой работаю жесты захвата за левый и правый край области выделения.
+/// Width of the area within which gestures for capturing the left and right edges of the selection area work.
 const kDragArea = 48.0;
 
-/// Минимально допустимое значения отступа между делениями.
+/// Minimum allowable value of the gap between divisions.
 const kMinGap = 24.0;
 
-/// Горизонтальный отступ при фокусировки на доступной области.
+/// Horizontal padding when focusing on the available area.
 const kHorizontalFocusPadding = 32.0;
 
-/// Коэффициент чувствительности при которой будет обнаружен жест прокрутки.
+/// Sensitivity factor at which a scroll gesture will be detected.
 const kScrollThreshold = 5.0;
 
-/// Чувствительность горизонтальной прокрутки.
+/// Horizontal scroll sensitivity.
 const kAxisScrollThreshold = 100.0;
 
 const kDefaultSelectorStyle = SelectorDecoration(
@@ -58,14 +58,33 @@ const kDefaultSelectorStyle = SelectorDecoration(
   dragHandleColor: Colors.white,
 );
 
-/// Стиль анимации для шкалы выбора времени по умолчанию.
+/// Default animation style for the time selection scale.
 final kDefaultSelectorAnimationStyle = AnimationStyle(curve: Curves.easeInOut, duration: Durations.short3);
 
-/// Стиль анимации прокрутки по умолчанию .
+/// Default scroll animation style.
 final kDefaultScrollAnimationStyle = AnimationStyle(curve: Curves.linear, duration: Durations.short2);
 
-/// Тип унарного обратного вызова, который принимает аргумент типа [TimeRange].
+/// Unary callback type that accepts an argument of type [TimeRange].
 typedef OnChangeSelectorRange = void Function(TimeRange value);
+
+/// Selector drag direction
+enum DragDirection {
+  /// Drag to the left
+  left,
+
+  /// Drag to the right
+  right;
+
+  const DragDirection();
+
+  factory DragDirection.fromPoints(double x1, double x2) {
+    if (x1 < x2) {
+      return DragDirection.left;
+    } else {
+      return DragDirection.right;
+    }
+  }
+}
 
 @immutable
 class FocusPosition {
@@ -84,44 +103,42 @@ class FocusPosition {
 }
 
 /// {@template timeline}
-/// Виджет, который отображает временную шкалу длиной 24 часа с возможностью выбирать определённый временной диапазон.
-/// При изменении выбранного диапазона автоматически вызывается обратный вызов [onChange], принимающий аргумент
-/// типа [TimeRange].
+/// A widget that displays a 24-hour timeline with the ability to select a specific time range.
+/// When the selected range changes, the [onChange] callback is automatically called, accepting an argument
+/// of type [TimeRange].
 ///
-/// Для задания начального положения элемента выбора временного диапазона используется свойство [initialSelectorRange].
-/// Минимальное допустимое значение диапазона задаётся с помощью свойства [minSelectorRange].
-/// Кастомизация внешнего вида доступна через свойство [selectorDecoration].
+/// The initial position of the time range selector element is set using the [initialSelectorRange] property.
+/// The minimum allowable range value is set using the [minSelectorRange] property.
+/// Customization of the appearance is available through the [selectorDecoration] property.
 ///
-/// Настройка шага временной шкалы осуществляется с использованием параметра [gap] — его значение не
-/// должно быть ниже значения [kMinGap].
-/// Интервалы доступных временных промежутков указываются в свойстве [availableRanges].
+/// The time scale step is configured using the [gap] parameter - its value must not be
+/// less than the value of [kMinGap].
+/// Available time intervals are specified in the [availableRanges] property.
 ///
-/// Дополнительная настройка визуализации производится посредством следующих свойств:
-/// * [timeScaleColor]: Цвет контура шкалы.
-/// * [strokeWidth]: Толщина линии контура.
-/// * [timeLabelStyle]: Стиль подписей временных меток.
-/// * [enabledLabelStyle]: Стиль подписей доступных интервалов времени.
-/// * [disabledLabelStyle]: Стиль подписей недоступных интервалов времени.
-/// * [hatchStyle]: Стиль штриховки для обозначения не доступных интервалов.
+/// Additional visualization settings are made through the following properties:
+/// * [timeScaleColor]: Scale outline color.
+/// * [strokeWidth]: Outline line thickness.
+/// * [timeLabelStyle]: Style of time label text.
+/// * [enabledLabelStyle]: Style of available time interval labels.
+/// * [disabledLabelStyle]: Style of unavailable time interval labels.
+/// * [hatchStyle]: Hatching style to indicate unavailable intervals.
 ///
-/// Данный виджет автоматически находит ближайший родительский виджет [Scrollable] для взаимодействия с прокруткой.
-/// Убедитесь, что этот виджет является потомком другого виджета вроде [SingleChildScrollView],
-/// однако не **поддерживает** использование внутри [CustomScrollView].
-/// Обратите внимание, что поддерживается только горизонтальная ориентация [Axis.horizontal], а также обязательно
-/// применяйте свойство [Scrollable.hitTestBehavior] = [HitTestBehavior.deferToChild] в родительских виджетах для
-/// правильной обработки жестов.
+/// This widget automatically finds the nearest parent [Scrollable] widget to interact with scrolling.
+/// Make sure this widget is a descendant of another widget like [SingleChildScrollView],
+/// but does **not support** use within [CustomScrollView].
+/// Note that only horizontal orientation [Axis.horizontal] is supported, and you must also
+/// apply the property [Scrollable.hitTestBehavior] = [HitTestBehavior.deferToChild] in parent widgets for
+/// proper gesture handling.
 ///
-/// Сам виджет не устанавливает собственную минимальную высоту, поэтому он принимает высоту своего
-/// родительского контейнера. Необходимо внимательно следить за заданием максимальной высоты виджета,
-/// используя такие виджеты, как [ConstrainedBox], перед добавлением внутрь [SingleChildScrollView].
+/// The widget itself does not set its own minimum height, so it takes the height of its
+/// parent container. You need to carefully monitor the setting of the widget's maximum height,
+/// using widgets such as [ConstrainedBox] before adding it inside [SingleChildScrollView].
 ///
-/// Пример использования
+/// Usage example
 ///
 /// ```dart
-/// import 'package:flutter/gestures.dart';
 /// import 'package:flutter/material.dart';
-/// import 'package:flutter_localizations/flutter_localizations.dart';
-/// import 'package:timeline_widget/timeline.dart';
+/// import 'package:horizontal_timeline/horizontal_timeline.dart';
 ///
 /// void main() {
 ///   runApp(const MainApp());
@@ -129,14 +146,12 @@ class FocusPosition {
 ///
 /// class MainApp extends StatelessWidget {
 ///   const MainApp({super.key});
+///
 ///   @override
 ///   Widget build(BuildContext context) {
 ///     return MaterialApp(
-///       locale: Locale('ru', 'RU'),
-///       supportedLocales: [Locale('ru', 'RU')],
-///       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-///       home: SizedBox(
-///               height: 95,
+///       home: ConstrainedBox(
+///               constraints: BoxConstraints.loose(Size.fromHeight(75)),
 ///               child: SingleChildScrollView(
 ///                 scrollDirection: Axis.horizontal,
 ///                 hitTestBehavior: HitTestBehavior.deferToChild,
@@ -174,66 +189,66 @@ class Timeline extends LeafRenderObjectWidget {
     this.focusTimeAlignment = Alignment.center,
   });
 
-  /// Начальное значение диапазона времени. Если равно null элемент выбора времени не отображается.
+  /// Initial time range value. If null, the time selector element is not displayed.
   final TimeRange? initialSelectorRange;
 
-  /// Временная позиция для фокусировки при инициализации виджета.
-  /// Если указано, шкала времени автоматически прокручивается к заданному времени.
-  /// Если равно null, фокусировка не применяется.
-  /// Имеет приоритет перед [initialSelectorRange].
+  /// Time position for focusing when initializing the widget.
+  /// If specified, the time scale automatically scrolls to the given time.
+  /// If null, no focus is applied.
+  /// Takes precedence over [initialSelectorRange].
   final TimeOfDay? focusTimePosition;
 
-  /// Выравнивание фокусируемой временной позиции относительно видимой области.
-  /// По умолчанию [Alignment.center].
+  /// Alignment of the focusable time position relative to the visible area.
+  /// Defaults to [Alignment.center].
   final Alignment focusTimeAlignment;
 
-  /// Обратный вызов который вызывается каждый раз, когда изменяется выбранный диапазон времени.
+  /// Callback that is called each time the selected time range changes.
   final OnChangeSelectorRange? onChange;
 
-  /// Доступные для выбора временные диапазоны. Если список пустой ограничение не накладываются.
+  /// Available time ranges for selection. If the list is empty, no restrictions are imposed.
   final Set<TimeRange> availableRanges;
 
-  /// Смещение между делениями шкалы.
+  /// Offset between scale divisions.
   final double gap;
 
-  /// Цвет шкалы.
+  /// Scale color.
   final Color timeScaleColor;
 
-  /// Толщина делений шкалы и нижней лини.
+  /// Thickness of scale divisions and the bottom line.
   final double strokeWidth;
 
-  /// Стиль текста времени.
+  /// Time text style.
   final TextStyle timeLabelStyle;
 
-  /// Стиль текста доступного времени.
+  /// Available time text style.
   final TextStyle enabledLabelStyle;
 
-  /// Стиль текста недоступного времени.
+  /// Unavailable time text style.
   final TextStyle disabledLabelStyle;
 
-  /// Стиль штриха зон недоступного времени.
+  /// Style of unavailable time zone strokes.
   final HatchStyle hatchStyle;
 
-  /// Стиль элемента выбора диапазона. Подробнее [SelectorDecoration].
+  /// Range selector element style. See [SelectorDecoration] for details.
   final SelectorDecoration selectorDecoration;
 
-  /// Минимальный отрезок времени для выбора.
+  /// Minimum time segment for selection.
   final TimeOfDay minSelectorRange;
 
-  /// Стиль анимации прокрутки. По умолчанию [kDefaultSelectorAnimationStyle].
+  /// Scroll animation style. Defaults to [kDefaultSelectorAnimationStyle].
   final AnimationStyle? scrollAnimationStyle;
 
-  /// Стиль анимации элемента выбора диапазона. По умолчанию [kDefaultScrollAnimationStyle].
+  /// Range selector element animation style. Defaults to [kDefaultScrollAnimationStyle].
   final AnimationStyle? animationStyle;
 
-  /// Отступ между текстом и нижней границей шкалы времени.
+  /// Padding between text and the bottom border of the time scale.
   final double space;
 
   void _debug() {
     assert(debugTimeOfDayCheck(minSelectorRange));
 
-    assert(minSelectorRange.totalMinutes >= kMinutesShift, 'Некорректное время  0 < TimeOfDay.totalMinutes >= 15');
-    assert(gap >= kMinGap, 'Некорректное значение gap. kMinGap <= gap');
+    assert(minSelectorRange.totalMinutes >= kMinutesShift, 'Invalid time 0 < TimeOfDay.totalMinutes >= 15');
+    assert(gap >= kMinGap, 'Invalid gap value. kMinGap <= gap');
   }
 
   @override
@@ -325,24 +340,24 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
     required OnChangeSelectorRange? onChangeSelectorRange,
     required SelectorDecoration selectorDecoration,
     required ScrollableState scrollable,
-  }) : _scrollable = scrollable,
-       _gap = gap,
-       _space = space,
-       _initialSelectorRange = initialSelectorValue,
-       _timeScaleColor = timeScaleColor,
-       _strokeWidth = strokeWidth,
-       _localization = localization,
-       _timeLabelStyle = timeLabelStyle,
-       _enabledLabelStyle = enabledLabelStyle,
-       _disabledLabelStyle = disabledLabelStyle,
-       _availableRanges = availableRanges,
-       _hatchStyle = hatchStyle,
-       _selectorDecoration = selectorDecoration,
-       _minSelectorRange = minSelectorRange,
-       _scrollAnimationStyle = scrollAnimationStyle,
-       _animationStyle = animationStyle,
-       _onChangeSelectorRange = onChangeSelectorRange,
-       _focusPosition = focusPosition {
+  })  : _scrollable = scrollable,
+        _gap = gap,
+        _space = space,
+        _initialSelectorRange = initialSelectorValue,
+        _timeScaleColor = timeScaleColor,
+        _strokeWidth = strokeWidth,
+        _localization = localization,
+        _timeLabelStyle = timeLabelStyle,
+        _enabledLabelStyle = enabledLabelStyle,
+        _disabledLabelStyle = disabledLabelStyle,
+        _availableRanges = availableRanges,
+        _hatchStyle = hatchStyle,
+        _selectorDecoration = selectorDecoration,
+        _minSelectorRange = minSelectorRange,
+        _scrollAnimationStyle = scrollAnimationStyle,
+        _animationStyle = animationStyle,
+        _onChangeSelectorRange = onChangeSelectorRange,
+        _focusPosition = focusPosition {
     tickerModeNotifier = tickerNotifier;
 
     _initializeAnimation(animationStyle);
@@ -373,38 +388,48 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   /// Scroll controller
   ScrollableState _scrollable;
 
-  // Выделения диапазона времени
+  // Time range selection
   Rect _selectorRect = Rect.zero;
 
-  // Доступная для выбора зона
+  /// Selector drag direction
+  DragDirection? _dragDirection;
+
+  /// Previous selector position to determine drag direction
+  Offset _previousSelectorPosition = Offset.zero;
+
+  // Available selection zone
   Set<Rect> _availableZones = const <Rect>{};
 
-  // Размер шкалы(без временных меток)
+  // Scale size (without time labels)
   Size _timeScaleSize = Size.zero;
 
-  // Флаги жестов
+  // Gesture flags
   bool _isDraggingRightCorner = false;
   bool _isDraggingLeftCorner = false;
+  bool _isDraggingSelector = false;
   bool _isTap = false;
   bool _isMove = false;
-  // Нужен для обнаружения прокрутки
-  Offset _startTapPosition = Offset.zero;
 
-  /// Ограничения временной шкалы
+  // Initial position when selector is pressed
+  Offset _startTapPosition = Offset.zero;
+  // Initial selector position when dragging
+  Offset _startSelectorPosition = Offset.zero;
+
+  /// Time scale constraints
   BoxConstraints get timeScaleConstraints => BoxConstraints.loose(_timeScaleSize);
 
-  /// Минимальная ширина выделителя времени
+  /// Minimum time selector width
   double get minSelectorWidth => minuteToDx(_minSelectorRange.totalMinutes);
 
-  /// Видимая часть. Меняется в зависимости от позиции прокрутки
-  /// Имеет отступы [kHorizontalFocusPadding] по горизонтали
+  /// Visible part. Changes depending on scroll position
+  /// Has [kHorizontalFocusPadding] horizontal padding
   Rect get viewportRect {
     final position = _scrollable.position;
 
     return Offset(position.pixels, .0) & Size(position.viewportDimension, timeScaleConstraints.maxHeight);
   }
 
-  /// Включен/Выключен выделитель времени
+  /// Time selector enabled/disabled
   bool get isEnabledSelector => initialSelectorRange != null && _selectorRect.width != 0;
 
   BoxBorder get effectiveSelectorBorder {
@@ -582,7 +607,7 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   set strokeWidth(double value) {
     assert(
       value > 0 && !value.isInfinite,
-      'Некорректное значение свойства strokeWidth. Должно быть 0 < strokeWidth < double.infinity',
+      'Invalid strokeWidth property value. Must be 0 < strokeWidth < double.infinity',
     );
     if (value == _strokeWidth) return;
 
@@ -594,7 +619,7 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   double _gap;
   double get gap => _gap;
   set gap(double value) {
-    assert(value > 0 && !value.isInfinite, 'Некорректное значение свойства gap. Должно быть 0 < gap < double.infinity');
+    assert(value > 0 && !value.isInfinite, 'Invalid gap property value. Must be 0 < gap < double.infinity');
     if (value == _gap) return;
 
     _gap = value;
@@ -648,7 +673,7 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   }
 
   Size layoutTimeline(BoxConstraints layoutSize) {
-    // Рассчитываем сколько по высоте займёт текст
+    // Calculate how much height the text will take
     final maxFontSize = math.max(
       timeLabelStyle.fontSize ?? 0,
       math.max(disabledLabelStyle.fontSize ?? 0, enabledLabelStyle.fontSize ?? 0),
@@ -690,10 +715,9 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
               ..style = PaintingStyle.fill,
           );
 
-        final anchorPaint =
-            Paint()
-              ..color = Colors.teal.withAlpha(80)
-              ..style = PaintingStyle.fill;
+        final anchorPaint = Paint()
+          ..color = Colors.teal.withAlpha(80)
+          ..style = PaintingStyle.fill;
 
         // left drag anchor
         canvas.drawRect(_dragAnchor(_leftEdgeCenter), anchorPaint);
@@ -720,6 +744,13 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
       return false;
     }
 
+    // Проверяем, находится ли позиция внутри селектора (но не на краях)
+    final isOutsideCorner = !_isNearLeftEdge(position) && !_isNearRightEdge(position);
+    if (_selectorRect.contains(position) && isOutsideCorner) {
+      result.add(BoxHitTestEntry(this, position));
+      return false;
+    }
+
     return super.hitTest(result, position: position);
   }
 
@@ -730,35 +761,50 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   void handleEvent(PointerEvent event, covariant BoxHitTestEntry entry) {
     final localPosition = event.localPosition;
 
-    /// Фиксируем взаимодеиствие
+    /// Fix interaction
     if (event is PointerDownEvent) {
       _isTap = false;
       _isMove = false;
       _startTapPosition = event.position;
+      _startSelectorPosition = _selectorRect.topLeft;
+      _previousSelectorPosition = _selectorRect.topLeft;
 
       _isDraggingLeftCorner = _isNearLeftEdge(localPosition);
       _isDraggingRightCorner = _isNearRightEdge(localPosition);
+      _isDraggingSelector = _selectorRect.contains(localPosition) && !_isDraggingLeftCorner && !_isDraggingRightCorner;
 
-      // Фиксируем возможный тап
-      if (_isOutsideTap(event.localPosition) && !(_isDraggingLeftCorner || _isDraggingRightCorner)) {
+      // Fix possible tap
+      if (_isOutsideTap(event.localPosition) &&
+          !(_isDraggingLeftCorner || _isDraggingRightCorner || _isDraggingSelector)) {
         _isTap = true;
       }
     }
-    // Изменение размера прямоугольника
-    if (event is PointerMoveEvent && (_isDraggingLeftCorner || _isDraggingRightCorner)) {
+    // Changing rectangle size
+    else if (event is PointerMoveEvent && (_isDraggingLeftCorner || _isDraggingRightCorner)) {
       _isTap = false;
       _isMove = true;
       final localOffset = globalToLocal(event.position);
 
       _updateSelectorSizeByOffset(localOffset, event.delta);
-    } else if (event is PointerMoveEvent && !(_isDraggingLeftCorner || _isDraggingRightCorner)) {
+    }
+    // Moving the entire selector
+    else if (event is PointerMoveEvent && _isDraggingSelector) {
+      _isTap = false;
+      _isMove = true;
       final delta = event.position - _startTapPosition;
-      // Проверяем, превысило ли смещение порог
+
+      // Check if the offset has exceeded the threshold
+      if (delta.distance > kScrollThreshold) {
+        _updateSelectorPositionByDrag(delta);
+      }
+    } else if (event is PointerMoveEvent && !(_isDraggingLeftCorner || _isDraggingRightCorner || _isDraggingSelector)) {
+      final delta = event.position - _startTapPosition;
+      // Check if the offset has exceeded the threshold
       if (delta.distance > kScrollThreshold) {
         _isTap = false;
       }
     }
-    // Если тап то перемещаем прямоугольник на позицию
+    // If tap, move the rectangle to the position
     else if (event is PointerUpEvent && _isTap) {
       _updateSelectorPosition(event.position);
     }
@@ -938,8 +984,8 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
     markNeedsPaint();
   }
 
-  // Анимированно изменяет прямоугольник. Обратный вызов [onComplete] может быть использован
-  // для действия после анимации.
+  // Animates the rectangle change. The [onComplete] callback can be used
+  // for actions after the animation.
   void _animatedUpdateSelectorRect(Rect value, [VoidCallback? onComplete]) {
     if (value == _selectorRect && _animation?.isAnimating == true) return;
 
@@ -956,8 +1002,8 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
     });
   }
 
-  // Анимированно привязывает позицию прямоугольника к делениям на шкале. Обратный вызов [onComplete]
-  // может быть использован для действия после анимации.
+  // Animates snapping the rectangle position to the scale divisions. The [onComplete] callback
+  // can be used for actions after the animation.
   void _animatedSnapToSegment(VoidCallback onCompleted) {
     _animation?.removeListener(_changeSelector);
     _animation = null;
@@ -1070,6 +1116,43 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
     }
   }
 
+  /// Updates the selector position when dragging
+  void _updateSelectorPositionByDrag(Offset delta) {
+    // Calculate the new selector position taking into account the offset
+    final newLeft = _startSelectorPosition.dx + delta.dx;
+    final newRight = newLeft + _selectorRect.width;
+
+    // Check boundaries and adjust position if necessary
+    double correctedLeft = newLeft;
+    if (newLeft < 0) {
+      correctedLeft = 0;
+    } else if (newRight > size.width) {
+      correctedLeft = size.width - _selectorRect.width;
+    }
+
+    // Create a new rectangle with the updated position
+    final newRect = Rect.fromLTWH(correctedLeft, _selectorRect.top, _selectorRect.width, _selectorRect.height);
+
+    // Determine the drag direction
+    _dragDirection = DragDirection.fromPoints(newRect.left, _previousSelectorPosition.dx);
+    // Update the previous position
+    _previousSelectorPosition = newRect.topLeft;
+
+    // Check if we need to scroll the viewport
+    // Scroll left if the selector's left edge approaches the viewport's left boundary
+    if ((newRect.left - viewportRect.left) <= 20.0 && _dragDirection == DragDirection.left) {
+      _scrollable.position.moveTo(newRect.left);
+    }
+    // Scroll right if the selector's right edge approaches the viewport's right boundary
+    if ((viewportRect.right - newRect.right) <= 20.0 && _dragDirection == DragDirection.right) {
+      final moveOffsetDx = newRect.right - viewportRect.right;
+      _scrollable.position.moveTo(viewportRect.left + moveOffsetDx);
+    }
+
+    // Update the selector position
+    _updateSelectorRect(newRect);
+  }
+
   // ------------------------ //
 
   // --- Paint --- //
@@ -1081,11 +1164,10 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   void _drawTimescale(Canvas canvas) {
     final height = _timeScaleSize.height;
 
-    final timeScalePaint =
-        Paint()
-          ..color = timeScaleColor
-          ..strokeWidth = strokeWidth
-          ..style = PaintingStyle.fill;
+    final timeScalePaint = Paint()
+      ..color = timeScaleColor
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.fill;
     canvas.drawLine(Offset(0, height), Offset(size.width, height), timeScalePaint);
     for (int step = 0; step < kSteps; step++) {
       final normalizedStep = step + 1;
@@ -1122,17 +1204,15 @@ class TimelineRenderObject extends RenderBox with SingleTickerProviderRenderObje
   void _drawHatch(Canvas canvas) {
     final height = _timeScaleSize.height;
 
-    final backgroundPaint =
-        Paint()
-          ..color = hatchStyle.backgroundColor
-          ..style = PaintingStyle.fill;
+    final backgroundPaint = Paint()
+      ..color = hatchStyle.backgroundColor
+      ..style = PaintingStyle.fill;
 
     const hatchAngle = 45 * math.pi / -180;
-    final hatchPaint =
-        Paint()
-          ..color = hatchStyle.strokeColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = hatchStyle.strokeWidth;
+    final hatchPaint = Paint()
+      ..color = hatchStyle.strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = hatchStyle.strokeWidth;
 
     final path = Path();
     final cosAngle = math.cos(hatchAngle);
