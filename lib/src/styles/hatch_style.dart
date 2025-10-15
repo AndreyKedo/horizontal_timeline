@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// Стиль штриховки для отображения неактивно области.
+/// Hatching style for displaying inactive area.
 @immutable
 class HatchStyle {
   const HatchStyle({
@@ -17,11 +17,11 @@ class HatchStyle {
   final double space;
 
   HatchStyle copyWith({Color? backgroundColor, Color? strokeColor, double? strokeWidth, double? space}) => HatchStyle(
-    backgroundColor: backgroundColor ?? this.backgroundColor,
-    strokeColor: strokeColor ?? this.strokeColor,
-    strokeWidth: strokeWidth ?? this.strokeWidth,
-    space: space ?? this.space,
-  );
+        backgroundColor: backgroundColor ?? this.backgroundColor,
+        strokeColor: strokeColor ?? this.strokeColor,
+        strokeWidth: strokeWidth ?? this.strokeWidth,
+        space: space ?? this.space,
+      );
 
   @override
   int get hashCode => Object.hash(runtimeType, backgroundColor, strokeColor, strokeWidth, space);
